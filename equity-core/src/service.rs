@@ -14,17 +14,12 @@ impl EquityService {
 
         let tasks = vec![server_handle];
 
-        Ok(Self {
-            address: address,
-            tasks,
-        })
+        Ok(Self { address, tasks })
     }
 
     pub async fn run(self) {
         for task in self.tasks {
-            match task.await {
-                _ => {}
-            }
+            let _ = task.await;
         }
     }
 }
