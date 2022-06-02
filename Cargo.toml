@@ -1,0 +1,12 @@
+[workspace]
+# Use the new resolver to prevent dev-deps and build-deps from enabling debugging or test features in production.
+resolver = "2"
+members = [
+ "equity-storage",
+ "equity-types",
+ "equity-p2p",
+ "equity-consensus",
+ "equity-client",  
+ "equity-core"
+]
+
