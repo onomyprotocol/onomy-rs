@@ -2,15 +2,15 @@
 name = "equity-core"
 version = "0.1.0"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+publish = false
 
 [dependencies]
+equity-storage = { path = "../equity-storage" }
+equity-types = { path = "../equity-types" }
+
 async-trait = "0.1"
 axum = "0.5"
 borsh = "0.9"
-equity-storage = { path = "../equity-storage" }
-equity-types = { path = "../equity-types" }
 hyper = "0.14"
 mime = "0.3"
 thiserror = "1.0"

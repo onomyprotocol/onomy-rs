@@ -2,14 +2,14 @@
 name = "equity-client"
 version = "0.1.0"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+publish = false
 
 [dependencies]
+equity-types = { path = "../equity-types" }
+
 anyhow = "1.0"
 borsh = "0.9"
 clap = { version = "3.1", features = ["derive"] }
-equity-types = { path = "../equity-types" }
 futures = "0.3"
 surf = { version = "2.3", default-features = false, features = ["h1-client-rustls"] }
 tracing = "0.1"
