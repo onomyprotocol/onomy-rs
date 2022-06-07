@@ -1,8 +1,9 @@
+use std::net::{Ipv4Addr, SocketAddr, TcpListener};
+
 use axum::{extract::Path, routing, Extension, Router};
 use equity_storage::EquityDatabase;
 use equity_types::{EquityAddressResponse, HealthResponse};
 use hyper::StatusCode;
-use std::net::{Ipv4Addr, SocketAddr, TcpListener};
 use thiserror::Error;
 use tokio::task::JoinHandle;
 use tracing::info;

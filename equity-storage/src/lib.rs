@@ -1,5 +1,6 @@
-use borsh::{BorshDeserialize, BorshSerialize};
 use std::{fmt::Debug, sync::Arc};
+
+use borsh::{BorshDeserialize, BorshSerialize};
 use thiserror::Error;
 
 pub type DatabaseResult<T> = Result<T, Error>;
@@ -48,7 +49,8 @@ pub enum DatabaseType {
 
 pub trait EquityStorage: Debug + Send + Sync {
     fn get(&self, key: &[u8]) -> DatabaseResult<Option<Vec<u8>>>;
-    /// Inserts `key` and corresponding `value` into the database. If an entry with `key` already existed, the previous value is returned
+    /// Inserts `key` and corresponding `value` into the database. If an entry
+    /// with `key` already existed, the previous value is returned
     fn insert(&self, key: Vec<u8>, value: Vec<u8>) -> DatabaseResult<Option<Vec<u8>>>;
 }
 

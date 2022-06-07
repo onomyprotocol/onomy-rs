@@ -1,0 +1,67 @@
+name: onomy-rs CI
+
+on: ['pull_request']
+
+env:
+  RUST_BACKTRACE: 1
+  RUSTFLAGS: -D warnings
+
+jobs:
+  test_suite:
+    name: Test suite
+    runs-on: ubuntu-latest
+    env:
+      RUSTFLAGS: -D warnings
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Rust components
+        run: |
+          rustup set profile minimal
+          rustup default nightly
+      - name: Run test suite
+        run: |
+          cargo test --all-features
+          cargo test --release --all-features
+
+  stable_build:
+    name: Build on stable
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Rust components
+        run: |
+          rustup set profile minimal
+          rustup default stable
+      - name: Run `cargo build`
+        run: |
+          cargo build --all-features
+
+  rustfmt:
+    name: Rustfmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      # Acquire the most recent nightly with a rustfmt component
+      - name: Install most recent Rustfmt
+        run: |
+          rustup set profile minimal
+          rustup default "nightly-$(curl -s https://rust-lang.github.io/rustup-components-history/x86_64-unknown-linux-gnu/rustfmt)"
+          rustup component add rustfmt
+      - name: Run `cargo fmt`
+        run: |
+          cargo fmt --all -- --check
+
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      # Acquire the most recent nightly with a clippy component
+      - name: Install most recent Clippy
+        run: |
+          rustup set profile minimal
+          rustup default "nightly-$(curl -s https://rust-lang.github.io/rustup-components-history/x86_64-unknown-linux-gnu/clippy)"
+          rustup component add clippy
+      - name: Run `cargo clippy`
+        run: |
+          cargo clippy --all --all-targets --all-features -- -D clippy::all
