@@ -3,6 +3,7 @@ use service::EquityService;
 use tracing::info;
 
 mod api_server;
+mod borsh;
 mod service;
 
 #[tokio::main]

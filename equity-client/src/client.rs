@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use anyhow;
+use borsh::BorshDeserialize;
 use equity_types::{EquityAddressResponse, HealthResponse};
 use tracing::info;
 
@@ -16,7 +16,8 @@ impl EquityClient {
     pub async fn health(&self) -> std::io::Result<HealthResponse> {
         let url = surf::Url::from_str(&format!("{}/health", self.url)).unwrap();
         info!(target = "equity-client", "URL is: {:?}", url);
-        let request: Result<HealthResponse, _> = surf::get(url).recv_json().await;
+        let request: Result<HealthResponse, _> =
+            BorshDeserialize::try_from_slice(&surf::get(url).recv_bytes().await.unwrap());
 
         match request {
             Ok(response) => Ok(response),
@@ -30,7 +31,7 @@ impl EquityClient {
     ) -> std::io::Result<EquityAddressResponse> {
         let url = surf::Url::from_str(&format!("{}/address/{}", self.url, address)).unwrap();
         info!(target = "equity-client", "URL is: {:?}", url);
-        let query = surf::get(&url).recv_json().await;
+        let query = BorshDeserialize::try_from_slice(&surf::get(url).recv_bytes().await.unwrap());
 
         match query {
             Ok(response) => Ok(response),

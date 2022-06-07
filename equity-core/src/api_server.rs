@@ -1,4 +1,4 @@
-use axum::{extract::Path, routing, Extension, Json, Router};
+use axum::{extract::Path, routing, Extension, Router};
 use equity_storage::EquityDatabase;
 use equity_types::{EquityAddressResponse, HealthResponse};
 use hyper::StatusCode;
@@ -6,6 +6,8 @@ use std::net::{Ipv4Addr, SocketAddr, TcpListener};
 use thiserror::Error;
 use tokio::task::JoinHandle;
 use tracing::info;
+
+use crate::borsh::Borsh;
 
 pub async fn start_api_server(
     db: EquityDatabase,
@@ -38,15 +40,15 @@ pub async fn start_api_server(
     Ok((bound_addr, handle))
 }
 
-async fn health() -> Json<HealthResponse> {
+async fn health() -> Borsh<HealthResponse> {
     info!(target = "equity-core", "Health API");
-    Json(HealthResponse { up: true })
+    Borsh(HealthResponse { up: true })
 }
 
 async fn get_address(
     Path(key): Path<String>,
     Extension(state): Extension<EquityDatabase>,
-) -> Result<Json<EquityAddressResponse>, StatusCode> {
+) -> Result<Borsh<EquityAddressResponse>, StatusCode> {
     info!(
         target = "equity-core",
         "Get Address API: address is: `{}`", key
@@ -54,7 +56,7 @@ async fn get_address(
 
     match state.get(&key.bytes().collect::<Vec<_>>()) {
         Ok(value) => {
-            let response = Json(EquityAddressResponse {
+            let response = Borsh(EquityAddressResponse {
                 owner: key,
                 value: value.unwrap(),
             });
