@@ -1,5 +1,5 @@
 [package]
-name = "equity-storage"
+name = "equity_storage"
 version = "0.1.0"
 edition = "2021"
 publish = false

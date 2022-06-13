@@ -1,12 +1,12 @@
 [package]
-name = "equity-core"
+name = "equity_core"
 version = "0.1.0"
 edition = "2021"
 publish = false
 
 [dependencies]
-equity-storage = { path = "../equity-storage" }
-equity-types = { path = "../equity-types" }
+equity_storage = { path = "../equity_storage" }
+equity_types = { path = "../equity_types" }
 
 async-trait = "0.1"
 axum = "0.5"

@@ -1,5 +1,5 @@
 [package]
-name = "equity-consensus"
+name = "equity_p2p"
 version = "0.1.0"
 edition = "2021"
 publish = false

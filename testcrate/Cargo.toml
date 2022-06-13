@@ -9,7 +9,7 @@ name = "common"
 path = "src/lib/common.rs"
 
 [dependencies]
-equity-client = { path = "../equity-client" }
-equity-types = { path = "../equity-types" }
+equity_client = { path = "../equity_client" }
+equity_types = { path = "../equity_types" }
 
 tokio = { version = "1.19", features = ["full"] }

@@ -2,12 +2,12 @@
 # Use the new resolver to prevent dev-deps and build-deps from enabling debugging or test features in production.
 resolver = "2"
 members = [
-    "equity-client",
-    "equity-consensus",
-    "equity-core",
-    "equity-p2p",
-    "equity-storage",
-    "equity-types",
+    "equity_client",
+    "equity_consensus",
+    "equity_core",
+    "equity_p2p",
+    "equity_storage",
+    "equity_types",
     "testcrate",
 ]
 

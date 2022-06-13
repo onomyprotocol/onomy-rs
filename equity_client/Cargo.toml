@@ -1,5 +1,5 @@
 [package]
-name = "equity-client"
+name = "equity_client"
 version = "0.1.0"
 edition = "2021"
 publish = false
@@ -9,7 +9,7 @@ name = "equity_client"
 path = "src/lib/lib.rs"
 
 [dependencies]
-equity-types = { path = "../equity-types" }
+equity_types = { path = "../equity_types" }
 
 anyhow = "1.0"
 borsh = "0.9"

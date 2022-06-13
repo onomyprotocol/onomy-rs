@@ -49,8 +49,8 @@ async fn main() {
     assert_dir_exists(&bin_dir).unwrap();
 
     let containers = [
-        ("host_equity", "equity-core"),
-        ("host_test_health", "test_health"),
+        ("equity_core", "equity_core"),
+        ("test_health", "test_health"),
     ];
     for (_, bin) in &containers {
         assert_file_exists(&bin_dir.join(bin)).unwrap();

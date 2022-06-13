@@ -624,13 +624,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "212d0f5754cb6769937f4501cc0e67f4f4483c8d2c3e1e922ee9edbe4ab4c7c0"
 
 [[package]]
-name = "equity-client"
+name = "equity_client"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "borsh",
  "clap",
- "equity-types",
+ "equity_types",
  "futures",
  "surf",
  "tracing",
@@ -638,18 +638,18 @@ dependencies = [
 ]
 
 [[package]]
-name = "equity-consensus"
+name = "equity_consensus"
 version = "0.1.0"
 
 [[package]]
-name = "equity-core"
+name = "equity_core"
 version = "0.1.0"
 dependencies = [
  "async-trait",
  "axum",
  "borsh",
- "equity-storage",
- "equity-types",
+ "equity_storage",
+ "equity_types",
  "hyper",
  "mime",
  "thiserror",
@@ -659,11 +659,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "equity-p2p"
+name = "equity_p2p"
 version = "0.1.0"
 
 [[package]]
-name = "equity-storage"
+name = "equity_storage"
 version = "0.1.0"
 dependencies = [
  "borsh",
@@ -671,7 +671,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "equity-types"
+name = "equity_types"
 version = "0.1.0"
 dependencies = [
  "borsh",
@@ -1777,8 +1777,8 @@ dependencies = [
 name = "testcrate"
 version = "0.1.0"
 dependencies = [
- "equity-client",
- "equity-types",
+ "equity_client",
+ "equity_types",
  "tokio",
 ]
 
