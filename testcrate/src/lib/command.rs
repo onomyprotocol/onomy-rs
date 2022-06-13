@@ -2,21 +2,26 @@ use std::{path::Path, process::Stdio};
 
 use tokio::{fs::File, io, process::Command, task};
 
-pub fn assert_dir_exists(path: &Path) {
+pub fn assert_dir_exists(path: &Path) -> Result<(), String> {
     if !path.exists() {
-        panic!("path {} does not exist", path.to_str().unwrap());
-    }
-    if !path.is_dir() {
-        panic!("path {} is not a directory", path.to_str().unwrap());
+        Err(format!("path {} does not exist", path.to_str().unwrap()))
+    } else if !path.is_dir() {
+        Err(format!(
+            "path {} is not a directory",
+            path.to_str().unwrap()
+        ))
+    } else {
+        Ok(())
     }
 }
 
-pub fn assert_file_exists(path: &Path) {
+pub fn assert_file_exists(path: &Path) -> Result<(), String> {
     if !path.exists() {
-        panic!("path {} does not exist", path.to_str().unwrap());
-    }
-    if !path.is_file() {
-        panic!("path {} is not a file", path.to_str().unwrap());
+        Err(format!("path {} does not exist", path.to_str().unwrap()))
+    } else if !path.is_file() {
+        Err(format!("path {} is not a file", path.to_str().unwrap()))
+    } else {
+        Ok(())
     }
 }
 

@@ -1,11 +1,10 @@
-//! `docker-compose` is not programmable among other problems
+//! `docker-compose` is not programmable among other problems. What this does is
+//! create an `--internal` network of containers using locally built binaries.
+//! Logs from `stdout` and `stderr` are actively pushed to log files under
+//! `testcrate/logs`. Most failure cases are all caught and all containers are
+//! force stopped.
 
-use std::{
-    collections::BTreeMap,
-    fs::{self},
-    io,
-    path::PathBuf,
-};
+use std::{collections::BTreeMap, fs, io, path::PathBuf};
 
 use common::{
     command::{assert_dir_exists, assert_file_exists, run_command, run_command_with_output},
@@ -27,16 +26,16 @@ async fn main() {
     };
     // check the directory for expected folders we will be using
     let base_dir = PathBuf::from(&args.dir);
-    assert_dir_exists(&base_dir);
+    assert_dir_exists(&base_dir).unwrap();
     let base_dir = fs::canonicalize(base_dir).unwrap();
     let base_dir_s = base_dir.to_str().unwrap();
     println!("using base directory {}", base_dir_s);
     assert!(base_dir_s.ends_with("onomy-rs"));
 
     let log_dir = base_dir.join("testcrate/logs");
-    assert_dir_exists(&log_dir);
+    assert_dir_exists(&log_dir).unwrap();
 
-    println!("running `cargo build --release`");
+    println!("running `cargo build --release --target {}`", args.target);
     run_command(
         "cargo",
         &["build", "--release", "--target", &args.target],
@@ -46,12 +45,12 @@ async fn main() {
     .await
     .unwrap();
 
-    let bin_dir = base_dir.join("target/release/");
-    assert_dir_exists(&bin_dir);
+    let bin_dir = base_dir.join(format!("target/{}/release", args.target));
+    assert_dir_exists(&bin_dir).unwrap();
 
     let containers = [("host_equity", "equity-core")];
     for (_, bin) in &containers {
-        assert_file_exists(&bin_dir.join(bin));
+        assert_file_exists(&bin_dir.join(bin)).unwrap();
     }
 
     // create an `--internal` docker network
@@ -82,7 +81,8 @@ async fn main() {
     for (container_name, bin) in &containers {
         let bin_path = bin_dir.join(bin);
         let bin_path_s = bin_path.to_str().unwrap();
-        let volume = format!("{}:/bin_volume/{}", bin_path_s, &bin);
+        // just include the needed binary
+        let volume = format!("{}:/usr/bin/{}", bin_path_s, &bin);
         let args = vec![
             "create",
             "--rm",
@@ -134,6 +134,7 @@ async fn main() {
             Err(e) => {
                 println!("force stopping all containers: {}\n", e);
                 force_stop_containers(&mut active_container_ids);
+                panic!();
             }
         }
     }
