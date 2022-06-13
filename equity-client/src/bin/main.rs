@@ -1,12 +1,15 @@
 use clap::Parser;
-use client::EquityClient;
+use equity_client::EquityClient;
 use tracing::{error, info};
-mod client;
 
 #[derive(Parser)]
 #[clap(name = "equity-cli", about = "Equity", version)]
 struct CliArgs {
-    #[clap(name = "endpoint", default_value = "127.0.0.1:4040", long = "endpoint")]
+    #[clap(
+        name = "endpoint",
+        default_value = "http://localhost:4040",
+        long = "endpoint"
+    )]
     endpoint: String,
 
     #[clap(subcommand)]

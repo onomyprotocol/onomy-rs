@@ -4,6 +4,10 @@ version = "0.1.0"
 edition = "2021"
 publish = false
 
+[lib]
+name = "equity_client"
+path = "src/lib/lib.rs"
+
 [dependencies]
 equity-types = { path = "../equity-types" }
 

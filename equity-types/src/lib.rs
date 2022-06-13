@@ -1,3 +1,4 @@
+pub use borsh;
 use borsh::{BorshDeserialize, BorshSerialize};
 
 #[derive(Default, Debug, BorshSerialize, BorshDeserialize)]

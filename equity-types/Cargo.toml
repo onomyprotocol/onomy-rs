@@ -4,5 +4,7 @@ version = "0.1.0"
 edition = "2021"
 publish = false
 
+# note: although there is a lot of message related stuff here, this crate should not depend on or
+# reexport runtime or TLS level stuff, only data and serialization
 [dependencies]
 borsh = "0.9"
