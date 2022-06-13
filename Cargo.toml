@@ -10,3 +10,5 @@ members = [
     "equity-types",
     "testcrate",
 ]
+
+[patch.crates-io]

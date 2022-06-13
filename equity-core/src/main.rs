@@ -1,10 +1,10 @@
-use equity_storage::EquityDatabase;
-use service::EquityService;
-use tracing::info;
-
 mod api_server;
 mod borsh;
 mod service;
+
+use equity_storage::EquityDatabase;
+use service::EquityService;
+use tracing::info;
 
 #[tokio::main]
 async fn main() -> Result<(), std::io::Error> {
