@@ -18,7 +18,7 @@ pub async fn start_api_server(
         .route("/address/:key", routing::get(get_address))
         .layer(Extension(db));
 
-    let listener = SocketAddr::new(Ipv4Addr::new(127, 0, 0, 1).into(), 4040);
+    let listener = SocketAddr::new(Ipv4Addr::new(0, 0, 0, 0).into(), 4040);
     let listener = TcpListener::bind(&listener)?;
     let bound_addr = listener.local_addr().unwrap();
 

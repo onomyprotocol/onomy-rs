@@ -34,7 +34,6 @@ pub async fn run_command(
     let mut child = Command::new(command)
         .args(args)
         .stdout(Stdio::piped())
-        .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
         .map_err(|e| format!("failed to spawn command {} {:?}: {}", command, args, e))?;
@@ -83,7 +82,6 @@ pub async fn run_command_with_output(
     let mut child = Command::new(command)
         .args(args)
         .stdout(Stdio::piped())
-        .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
         .map_err(|e| format!("failed to spawn command {} {:?}: {}", command, args, e))?;
@@ -117,4 +115,39 @@ pub async fn run_command_with_output(
         handle.await.map_err(|e| format!("task panicked: {}", e))?;
     }
     res
+}
+
+/// Does not wait for command to finish
+pub async fn run_command_detached(
+    command: &str,
+    args: &[&str],
+    stdout_file: Option<&Path>,
+    stderr_file: Option<&Path>,
+) -> Result<(), String> {
+    let mut child = Command::new(command)
+        .args(args)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| format!("failed to spawn command {} {:?}: {}", command, args, e))?;
+    let mut handles = vec![];
+    if let Some(stdout_file) = stdout_file {
+        let mut file = File::create(stdout_file)
+            .await
+            .map_err(|e| format!("failed to create stdout file: {}", e))?;
+        let mut stdout = child.stdout.take().unwrap();
+        handles.push(task::spawn(async move {
+            io::copy(&mut stdout, &mut file).await.unwrap();
+        }));
+    }
+    if let Some(stderr_file) = stderr_file {
+        let mut file = File::create(stderr_file)
+            .await
+            .map_err(|e| format!("failed to create stdout file: {}", e))?;
+        let mut stderr = child.stderr.take().unwrap();
+        handles.push(task::spawn(async move {
+            io::copy(&mut stderr, &mut file).await.unwrap();
+        }));
+    }
+    Ok(())
 }

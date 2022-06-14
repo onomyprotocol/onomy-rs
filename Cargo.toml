@@ -1,6 +1,8 @@
 [workspace]
-# Use the new resolver to prevent dev-deps and build-deps from enabling debugging or test features in production.
+# Use the new resolver to prevent dev-deps and build-deps from enabling debugging or test features
+# in production.
 resolver = "2"
+# note: there are scripts that need to be updated if new members are added
 members = [
     "equity_client",
     "equity_consensus",

@@ -25,7 +25,7 @@ async fn main() -> Result<(), std::io::Error> {
 fn initialize_logger() {
     let sub = tracing_subscriber::fmt::Subscriber::builder().with_writer(std::io::stderr);
 
-    sub.with_ansi(true)
+    sub.with_ansi(false)
         .with_level(true)
         .with_line_number(true)
         .init();

@@ -2,12 +2,21 @@
 //! create an `--internal` network of containers using locally built binaries.
 //! Logs from `stdout` and `stderr` are actively pushed to log files under
 //! `testcrate/logs`. Most failure cases are all caught and all containers are
-//! force stopped.
+//! force stopped on failure or finish.
+//!
+//! The overall run waits on the last container in the list finishing
 
-use std::{collections::BTreeMap, fs, io, path::PathBuf};
+use std::{
+    collections::BTreeMap,
+    fs,
+    path::{Path, PathBuf},
+};
 
 use common::{
-    command::{assert_dir_exists, assert_file_exists, run_command, run_command_with_output},
+    command::{
+        assert_dir_exists, assert_file_exists, run_command, run_command_detached,
+        run_command_with_output,
+    },
     docker::force_stop_containers,
 };
 
@@ -39,19 +48,24 @@ async fn main() {
     run_command(
         "cargo",
         &["build", "--release", "--target", &args.target],
-        Some(&log_dir.join("cmd_cargo_build_out.log")),
+        None,
         Some(&log_dir.join("cmd_cargo_build_err.log")),
     )
     .await
     .unwrap();
 
+    // after the build we should have a release directory with the binaries
     let bin_dir = base_dir.join(format!("target/{}/release", args.target));
     assert_dir_exists(&bin_dir).unwrap();
 
+    // name followed by the binary used
     let containers = [
         ("equity_core", "equity_core"),
         ("test_health", "test_health"),
     ];
+    if containers.is_empty() {
+        panic!();
+    }
     for (_, bin) in &containers {
         assert_file_exists(&bin_dir.join(bin)).unwrap();
     }
@@ -110,7 +124,7 @@ async fn main() {
             Ok(mut id) => {
                 // remove trailing '\n'
                 id.pop().unwrap();
-                println!("started container {}", container_name);
+                println!("created container {}", container_name);
                 active_container_ids.insert(container_name.to_string(), id);
             }
             Err(e) => {
@@ -122,28 +136,39 @@ async fn main() {
     }
 
     // start all containers
-    for (_, id) in active_container_ids.clone() {
-        let args = vec!["start", &id];
-        match run_command_with_output(
-            "docker",
-            &args,
-            Some(&log_dir.join("cmd_docker_start_err.log")),
-        )
-        .await
-        {
-            Ok(name) => {
-                println!("started container {}", name)
+    for (i, (container_name, id)) in active_container_ids.clone().iter().enumerate() {
+        let args = vec!["start", "--attach", id];
+        let stderr_file = log_dir.join(format!("container_{}_err.log", container_name));
+        let stderr: Option<&Path> = Some(&stderr_file);
+        if (i + 1) == active_container_ids.len() {
+            // wait on last container finishing
+            print!("waiting on container {} ... ", container_name);
+            match run_command("docker", &args, None, stderr).await {
+                Ok(_) => {
+                    println!("done");
+                }
+                Err(e) => {
+                    println!("force stopping all containers: {}\n", e);
+                    force_stop_containers(&mut active_container_ids);
+                    panic!();
+                }
             }
-            Err(e) => {
-                println!("force stopping all containers: {}\n", e);
-                force_stop_containers(&mut active_container_ids);
-                panic!();
+        } else {
+            match run_command_detached("docker", &args, None, stderr).await {
+                Ok(_) => {
+                    println!("started container {}", container_name)
+                }
+                Err(e) => {
+                    println!("force stopping all containers: {}\n", e);
+                    force_stop_containers(&mut active_container_ids);
+                    panic!();
+                }
             }
         }
     }
 
-    println!("press enter to stop");
-    let _ = io::stdin().read_line(&mut String::new());
+    //println!("press enter to stop");
+    //let _ = io::stdin().read_line(&mut String::new());
 
     force_stop_containers(&mut active_container_ids);
 }

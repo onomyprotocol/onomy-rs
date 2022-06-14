@@ -24,7 +24,7 @@ enum Command {
 
 impl CliArgs {
     async fn exec(&self) {
-        let client = EquityClient::new("http://".to_owned() + &self.endpoint).unwrap();
+        let client = EquityClient::new(&self.endpoint).unwrap();
 
         match &self.command {
             Command::Account { address } => {
