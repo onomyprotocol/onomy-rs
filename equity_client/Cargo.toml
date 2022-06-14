@@ -8,12 +8,15 @@ publish = false
 name = "equity_client"
 path = "src/lib/lib.rs"
 
+[[bin]]
+name = "equity_client"
+path = "src/bin/main.rs"
+
 [dependencies]
 equity_types = { path = "../equity_types" }
 
 borsh = "0.9"
 clap = { version = "3.1", features = ["derive"] }
-futures = "0.3"
 surf = { version = "2.3", default-features = false, features = ["h1-client-rustls"] }
 thiserror = "1.0"
 tokio = { version = "1.19", features = ["full"] }

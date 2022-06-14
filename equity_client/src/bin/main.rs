@@ -3,7 +3,7 @@ use equity_client::EquityClient;
 use tracing::{error, info};
 
 #[derive(Parser)]
-#[clap(name = "equity-cli", about = "Equity", version)]
+#[clap(name = "equity_cli", about = "Equity", version)]
 struct CliArgs {
     #[clap(
         name = "endpoint",
@@ -22,33 +22,28 @@ enum Command {
     Health,
 }
 
-impl CliArgs {
-    async fn exec(&self) {
-        let client = EquityClient::new(&self.endpoint).unwrap();
+#[tokio::main]
+pub async fn main() {
+    let args = CliArgs::parse();
+    initialize_logger();
 
-        match &self.command {
-            Command::Account { address } => {
-                match client.get_account_details(address.to_owned()).await {
-                    Ok(response) => info!("{:?}", response),
-                    Err(e) => error!("{:?}", e),
-                }
+    let client = EquityClient::new(&args.endpoint).unwrap();
+    match &args.command {
+        Command::Account { address } => {
+            match client.get_account_details(address.to_owned()).await {
+                Ok(response) => info!("{:?}", response),
+                Err(e) => error!("{:?}", e),
             }
-            Command::Health => {
-                let response = client.health().await.unwrap();
-                info!("Health Response is: {:?}", response);
-            }
+        }
+        Command::Health => {
+            let response = client.health().await.unwrap();
+            info!("Health Response is: {:?}", response);
         }
     }
 }
 
-fn main() {
-    initialize_logger();
-    futures::executor::block_on(CliArgs::parse().exec());
-}
-
 fn initialize_logger() {
     let sub = tracing_subscriber::fmt::Subscriber::builder().with_writer(std::io::stderr);
-
     sub.with_ansi(true)
         .with_level(true)
         .with_line_number(true)

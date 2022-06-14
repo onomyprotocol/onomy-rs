@@ -1,4 +1,4 @@
-use std::net::{Ipv4Addr, SocketAddr, TcpListener};
+use std::net::{SocketAddr, TcpListener};
 
 use axum::{extract::Path, routing, Extension, Router};
 use equity_storage::EquityDatabase;
@@ -8,17 +8,17 @@ use thiserror::Error;
 use tokio::task::JoinHandle;
 use tracing::info;
 
-use crate::borsh::Borsh;
+use crate::{borsh::Borsh, Error};
 
 pub async fn start_api_server(
+    listener: SocketAddr,
     db: EquityDatabase,
-) -> Result<(SocketAddr, JoinHandle<Result<(), EquityError>>), std::io::Error> {
+) -> Result<(SocketAddr, JoinHandle<Result<(), EquityError>>), Error> {
     let router = Router::new()
         .route("/health", routing::get(health))
         .route("/address/:key", routing::get(get_address))
         .layer(Extension(db));
 
-    let listener = SocketAddr::new(Ipv4Addr::new(0, 0, 0, 0).into(), 4040);
     let listener = TcpListener::bind(&listener)?;
     let bound_addr = listener.local_addr().unwrap();
 

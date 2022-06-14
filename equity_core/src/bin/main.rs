@@ -1,13 +1,21 @@
-mod api_server;
-mod borsh;
-mod service;
+use std::{net::SocketAddr, str::FromStr};
 
+use clap::Parser;
+use equity_core::{EquityService, Error};
 use equity_storage::EquityDatabase;
-use service::EquityService;
 use tracing::info;
 
+#[derive(Parser)]
+#[clap(name = "equity_core", about = "Equity", version)]
+struct CliArgs {
+    #[clap(name = "listener", default_value = "0.0.0.0:4040", long = "listener")]
+    listener: String,
+}
+
 #[tokio::main]
-async fn main() -> Result<(), std::io::Error> {
+async fn main() -> Result<(), Error> {
+    let args = CliArgs::parse();
+    let listener = SocketAddr::from_str(&args.listener)?;
     initialize_logger();
     info!(target: "equity-core", "Initializing equity-core");
 
@@ -15,7 +23,7 @@ async fn main() -> Result<(), std::io::Error> {
     let db = EquityDatabase::in_memory();
     genesis_data(&db);
 
-    let service = EquityService::new(db).await?;
+    let service = EquityService::new(listener, db).await?;
 
     service.run().await;
 

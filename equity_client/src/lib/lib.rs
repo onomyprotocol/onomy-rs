@@ -1,5 +1,5 @@
 mod client;
 mod error;
 
-pub use client::EquityClient;
-pub use error::{Error, Result};
+pub use client::*;
+pub use error::*;
