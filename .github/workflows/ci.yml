@@ -23,7 +23,7 @@ jobs:
           rustup set profile minimal
           rustup default stable
       - name: Cache Rust
-      - uses: actions/cache@v3
+        uses: actions/cache@v3
         with:
           path: |
             ~/.cargo/bin/
@@ -36,7 +36,7 @@ jobs:
         run: |
           cargo test --all-features
           cargo test --release --all-features
-          cargo 
+          cargo run --bin run
 
   rustfmt:
     name: Rustfmt
