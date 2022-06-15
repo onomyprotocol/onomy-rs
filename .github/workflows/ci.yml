@@ -24,6 +24,8 @@ jobs:
         run: |
           rustup set profile minimal
           rustup default stable
+      - name: Get Rust version
+        run: echo "GITHUB_RUST_VERSION=$(cargo --version | cut -d' ' -f 2)" >> $GITHUB_ENV
       - name: Cache Rust
         uses: actions/cache@v3
         with:
@@ -33,7 +35,7 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: ${{ runner.os }}-test_suite-${{ cargo --version | cut -d' ' -f 2 }}-${{ hashFiles('Cargo.lock') }}
+          key: ${{ runner.os }}-test_suite-${{ env.GITHUB_RUST_VERSION }}-${{ hashFiles('Cargo.lock') }}
       - name: Run test suite
         run: |
           cargo test --all-features
@@ -68,6 +70,8 @@ jobs:
         run: |
           rustup set profile minimal
           rustup default "nightly-$(curl -s https://rust-lang.github.io/rustup-components-history/x86_64-unknown-linux-gnu/clippy)"
+      - name: Get Rust version
+        run: echo "GITHUB_RUST_VERSION=$(cargo --version | cut -d' ' -f 2)" >> $GITHUB_ENV
       - name: Cache Rust
         uses: actions/cache@v3
         with:
@@ -77,7 +81,7 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: ${{ runner.os }}-clippy-${{ cargo --version | cut -d' ' -f 2 }}-${{ hashFiles('Cargo.lock') }}
+          key: ${{ runner.os }}-clippy-${{ env.GITHUB_RUST_VERSION }}-${{ hashFiles('Cargo.lock') }}
       - name: Install most recent Clippy
         run: |
           rustup component add clippy
