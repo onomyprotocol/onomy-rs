@@ -6,7 +6,7 @@ use std::{
 
 use tokio::{
     fs::File,
-    io,
+    io::{self, AsyncBufReadExt, AsyncWriteExt, BufReader, BufWriter},
     process::{Child, Command},
     task,
 };
@@ -40,6 +40,7 @@ pub struct ComplexCommand {
     pub args: Vec<String>,
     pub child: Option<Child>,
     pub handles: Vec<tokio::task::JoinHandle<()>>,
+    pub ci: bool,
 }
 
 /// A more convenient command result that is returned in both failure and
@@ -62,8 +63,11 @@ impl fmt::Display for ComplexOutput {
 
 impl ComplexCommand {
     /// Spawns a command with piped stdout and stderr. If `wait` or
-    /// `wait_for_output` is not called this is left detached.
-    pub fn new(command: &str, args: &[&str]) -> Result<Self, String> {
+    /// `wait_for_output` is not called this is left detached. Per
+    /// `ComplexCommand::new`, only one from each of the the `stdout_`,
+    /// `stderr_`, and `wait_` classes of functions should be called. `ci` makes
+    /// `stdout_` and `stderr_` functions pipe to the current process.
+    pub fn new(command: &str, args: &[&str], ci: bool) -> Result<Self, String> {
         let child = Command::new(command)
             .args(args)
             .stdout(Stdio::piped())
@@ -75,30 +79,74 @@ impl ComplexCommand {
             args: args.iter().map(|s| s.to_string()).collect(),
             child: Some(child),
             handles: vec![],
+            ci,
         })
     }
 
     /// Spawns a task to continuously copy the stdout to a file
     pub async fn stdout_to_file(mut self, path: &Path) -> Result<Self, String> {
-        let mut file = File::create(path)
-            .await
-            .map_err(|e| format!("failed to create stdout file: {}", e))?;
         let mut stdout = self.child.as_mut().unwrap().stdout.take().unwrap();
-        self.handles.push(task::spawn(async move {
-            io::copy(&mut stdout, &mut file).await.unwrap();
-        }));
+        if self.ci {
+            // in CI mode print to stdout
+            let prefix = path.file_name().unwrap().to_str().unwrap().to_owned();
+            let mut lines = BufReader::new(stdout).lines();
+            let mut writer = BufWriter::new(tokio::io::stdout());
+            self.handles.push(task::spawn(async move {
+                loop {
+                    match lines.next_line().await {
+                        Ok(Some(line)) => {
+                            let _ = writer
+                                .write(format!("{} | {}\n", prefix, line).as_bytes())
+                                .await
+                                .unwrap();
+                            writer.flush().await.unwrap();
+                        }
+                        Ok(None) => break,
+                        Err(e) => panic!("stdout line copier failed with {}", e),
+                    }
+                }
+            }));
+        } else {
+            let mut file = File::create(path)
+                .await
+                .map_err(|e| format!("failed to create stdout file: {}", e))?;
+            self.handles.push(task::spawn(async move {
+                io::copy(&mut stdout, &mut file).await.unwrap();
+            }));
+        }
         Ok(self)
     }
 
     /// Spawns a task to continuously copy the stderr to a file
     pub async fn stderr_to_file(mut self, path: &Path) -> Result<Self, String> {
-        let mut file = File::create(path)
-            .await
-            .map_err(|e| format!("failed to create stdout file: {}", e))?;
-        let mut stdout = self.child.as_mut().unwrap().stderr.take().unwrap();
-        self.handles.push(task::spawn(async move {
-            io::copy(&mut stdout, &mut file).await.unwrap();
-        }));
+        let mut stderr = self.child.as_mut().unwrap().stderr.take().unwrap();
+        if self.ci {
+            let prefix = path.file_name().unwrap().to_str().unwrap().to_owned();
+            let mut lines = BufReader::new(stderr).lines();
+            let mut writer = BufWriter::new(tokio::io::stderr());
+            self.handles.push(task::spawn(async move {
+                loop {
+                    match lines.next_line().await {
+                        Ok(Some(line)) => {
+                            let _ = writer
+                                .write(format!("{} | {}\n", prefix, line).as_bytes())
+                                .await
+                                .unwrap();
+                            writer.flush().await.unwrap();
+                        }
+                        Ok(None) => break,
+                        Err(e) => panic!("stderr line copier failed with {}", e),
+                    }
+                }
+            }));
+        } else {
+            let mut file = File::create(path)
+                .await
+                .map_err(|e| format!("failed to create stderr file: {}", e))?;
+            self.handles.push(task::spawn(async move {
+                io::copy(&mut stderr, &mut file).await.unwrap();
+            }));
+        }
         Ok(self)
     }
 

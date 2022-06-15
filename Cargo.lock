@@ -1778,6 +1778,7 @@ dependencies = [
 name = "testcrate"
 version = "0.1.0"
 dependencies = [
+ "clap",
  "equity_client",
  "equity_types",
  "tokio",

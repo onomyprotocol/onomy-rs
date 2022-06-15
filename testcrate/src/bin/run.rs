@@ -8,24 +8,34 @@
 
 use std::{collections::BTreeMap, fs, path::PathBuf};
 
+use clap::Parser;
 use common::{
     command::{assert_dir_exists, assert_file_exists, ComplexCommand},
     docker::force_stop_containers,
 };
 
-struct Args {
+#[derive(Parser)]
+#[clap(about = "Container Runner", version)]
+struct CliArgs {
+    #[clap(long, default_value = "./")]
+    /// The base directory that has `onomy-rs/testcrate/logs`
     dir: String,
+    #[clap(long, default_value = "testnet")]
+    /// The name of the network used
     network: String,
+    #[clap(long, default_value = "x86_64-unknown-linux-gnu")]
+    /// Target used for binaries that will run in the containers
     target: String,
+    #[clap(long)]
+    /// Turns on "CI mode" which will redirects all output that would go to log
+    /// files to stdout and stderr instead
+    ci: bool,
 }
 
 #[tokio::main]
 async fn main() {
-    let args = Args {
-        dir: "./".to_owned(),
-        network: "testnet".to_owned(),
-        target: "x86_64-unknown-linux-gnu".to_owned(),
-    };
+    let args = CliArgs::parse();
+    let ci = args.ci;
     // check the directory for expected folders we will be using
     let base_dir = PathBuf::from(&args.dir);
     assert_dir_exists(&base_dir).unwrap();
@@ -38,14 +48,18 @@ async fn main() {
     assert_dir_exists(&log_dir).unwrap();
 
     println!("running `cargo build --release --target {}`", args.target);
-    ComplexCommand::new("cargo", &["build", "--release", "--target", &args.target])
-        .unwrap()
-        .stderr_to_file(&log_dir.join("cmd_cargo_build_err.log"))
-        .await
-        .unwrap()
-        .wait()
-        .await
-        .unwrap();
+    ComplexCommand::new(
+        "cargo",
+        &["build", "--release", "--target", &args.target],
+        ci,
+    )
+    .unwrap()
+    .stderr_to_file(&log_dir.join("cmd_cargo_build_err.log"))
+    .await
+    .unwrap()
+    .wait()
+    .await
+    .unwrap();
 
     // after the build we should have a release directory with the binaries
     let bin_dir = base_dir.join(format!("target/{}/release", args.target));
@@ -69,17 +83,16 @@ async fn main() {
     println!("creating docker network {}", args.network);
     // remove old network if it exists (there is no option to ignore nonexistent
     // networks, drop exit status errors)
-    let _ = ComplexCommand::new("docker", &["network", "rm", &args.network])
+    let _ = ComplexCommand::new("docker", &["network", "rm", &args.network], ci)
         .unwrap()
         .wait()
         .await;
     // create the network as `--internal`
-    ComplexCommand::new("docker", &[
-        "network",
-        "create",
-        "--internal",
-        &args.network,
-    ])
+    ComplexCommand::new(
+        "docker",
+        &["network", "create", "--internal", &args.network],
+        ci,
+    )
     .unwrap()
     .wait_for_output()
     .await
@@ -108,7 +121,7 @@ async fn main() {
             &base_image,
             bin,
         ];
-        match ComplexCommand::new("docker", &args)
+        match ComplexCommand::new("docker", &args, ci)
             .unwrap()
             .stderr_to_file(&log_dir.join("cmd_docker_create_err.log"))
             .await
@@ -136,7 +149,7 @@ async fn main() {
     for (container_name, id) in active_container_ids.clone().iter() {
         let args = vec!["start", "--attach", id];
         let stderr = log_dir.join(format!("container_{}_err.log", container_name));
-        let cc = ComplexCommand::new("docker", &args)
+        let cc = ComplexCommand::new("docker", &args, ci)
             .unwrap()
             .stderr_to_file(&stderr)
             .await
