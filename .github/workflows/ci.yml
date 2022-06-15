@@ -16,8 +16,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
       # docker caching for tests that use docker internally
-      - uses: satackey/action-docker-layer-caching@v0.0.11
-        continue-on-error: true
+      - name: Docker Cache
+        uses: satackey/action-docker-layer-caching@v0.0.11
+        with:
+          continue-on-error: true
       - name: Install Rust components
         run: |
           rustup set profile minimal
