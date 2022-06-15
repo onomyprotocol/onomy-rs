@@ -6,17 +6,10 @@
 //!
 //! The overall run waits on the last container in the list finishing
 
-use std::{
-    collections::BTreeMap,
-    fs,
-    path::{Path, PathBuf},
-};
+use std::{collections::BTreeMap, fs, path::PathBuf};
 
 use common::{
-    command::{
-        assert_dir_exists, assert_file_exists, run_command, run_command_detached,
-        run_command_with_output,
-    },
+    command::{assert_dir_exists, assert_file_exists, ComplexCommand},
     docker::force_stop_containers,
 };
 
@@ -45,14 +38,14 @@ async fn main() {
     assert_dir_exists(&log_dir).unwrap();
 
     println!("running `cargo build --release --target {}`", args.target);
-    run_command(
-        "cargo",
-        &["build", "--release", "--target", &args.target],
-        None,
-        Some(&log_dir.join("cmd_cargo_build_err.log")),
-    )
-    .await
-    .unwrap();
+    ComplexCommand::new("cargo", &["build", "--release", "--target", &args.target])
+        .unwrap()
+        .stderr_to_file(&log_dir.join("cmd_cargo_build_err.log"))
+        .await
+        .unwrap()
+        .wait()
+        .await
+        .unwrap();
 
     // after the build we should have a release directory with the binaries
     let bin_dir = base_dir.join(format!("target/{}/release", args.target));
@@ -74,22 +67,21 @@ async fn main() {
 
     // create an `--internal` docker network
     println!("creating docker network {}", args.network);
-    // remove old network if it exists
-    run_command(
-        "docker",
-        &["network", "rm", &args.network],
-        Some(&log_dir.join("cmd_docker_network_rm_out.log")),
-        Some(&log_dir.join("cmd_docker_network_rm_err.log")),
-    )
-    .await
-    .unwrap();
+    // remove old network if it exists (there is no option to ignore nonexistent
+    // networks, drop exit status errors)
+    let _ = ComplexCommand::new("docker", &["network", "rm", &args.network])
+        .unwrap()
+        .wait()
+        .await;
     // create the network as `--internal`
-    run_command(
-        "docker",
-        &["network", "create", "--internal", &args.network],
-        Some(&log_dir.join("cmd_docker_network_create_out.log")),
-        Some(&log_dir.join("cmd_docker_network_create_err.log")),
-    )
+    ComplexCommand::new("docker", &[
+        "network",
+        "create",
+        "--internal",
+        &args.network,
+    ])
+    .unwrap()
+    .wait_for_output()
     .await
     .unwrap();
 
@@ -116,14 +108,16 @@ async fn main() {
             &base_image,
             bin,
         ];
-        match run_command_with_output(
-            "docker",
-            &args,
-            Some(&log_dir.join("cmd_docker_create_err.log")),
-        )
-        .await
+        match ComplexCommand::new("docker", &args)
+            .unwrap()
+            .stderr_to_file(&log_dir.join("cmd_docker_create_err.log"))
+            .await
+            .unwrap()
+            .wait_for_output()
+            .await
         {
-            Ok(mut id) => {
+            Ok(output) => {
+                let mut id = output.stdout;
                 // remove trailing '\n'
                 id.pop().unwrap();
                 println!("created container {}", container_name);
@@ -138,34 +132,29 @@ async fn main() {
     }
 
     // start all containers
-    for (i, (container_name, id)) in active_container_ids.clone().iter().enumerate() {
+    let mut ccs = vec![];
+    for (container_name, id) in active_container_ids.clone().iter() {
         let args = vec!["start", "--attach", id];
-        let stderr_file = log_dir.join(format!("container_{}_err.log", container_name));
-        let stderr: Option<&Path> = Some(&stderr_file);
-        if (i + 1) == active_container_ids.len() {
-            // wait on last container finishing
-            print!("waiting on container {} ... ", container_name);
-            match run_command("docker", &args, None, stderr).await {
-                Ok(_) => {
-                    println!("done");
-                }
-                Err(e) => {
-                    println!("force stopping all containers: {}\n", e);
-                    force_stop_containers(&mut active_container_ids);
-                    panic!();
-                }
-            }
-        } else {
-            match run_command_detached("docker", &args, None, stderr).await {
-                Ok(_) => {
-                    println!("started container {}", container_name)
-                }
-                Err(e) => {
-                    println!("force stopping all containers: {}\n", e);
-                    force_stop_containers(&mut active_container_ids);
-                    panic!();
-                }
-            }
+        let stderr = log_dir.join(format!("container_{}_err.log", container_name));
+        let cc = ComplexCommand::new("docker", &args)
+            .unwrap()
+            .stderr_to_file(&stderr)
+            .await
+            .unwrap();
+        ccs.push(cc);
+    }
+
+    let cc = ccs.pop().unwrap();
+    // wait on last container finishing
+    print!("waiting on last container... ",);
+    match cc.wait().await {
+        Ok(()) => {
+            println!("done");
+        }
+        Err(e) => {
+            println!("force stopping all containers: {}\n", e);
+            force_stop_containers(&mut active_container_ids);
+            panic!();
         }
     }
 

@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use equity_client::EquityClient;
 
-const TIMEOUT: Duration = Duration::from_secs(10);
+const TIMEOUT: Duration = Duration::from_secs(20);
 
 #[tokio::main]
 async fn main() {
