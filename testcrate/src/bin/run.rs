@@ -58,6 +58,8 @@ async fn main() {
     let bin_dir = base_dir.join(format!("target/{}/release", args.target));
     assert_dir_exists(&bin_dir).unwrap();
 
+    // TODO need some kind of system for multiple test groups
+
     // name followed by the binary used
     let containers = [
         ("equity_core", "equity_core"),
