@@ -17,6 +17,8 @@ equity_types = { path = "../equity_types" }
 
 borsh = "0.9"
 clap = { version = "3.2", features = ["derive"] }
+ron = "0.7"
+serde = { version = "1.0", features = ["derive"] }
 surf = { version = "2.3", default-features = false, features = ["h1-client-rustls"] }
 thiserror = "1.0"
 tokio = { version = "1.19", features = ["full"] }

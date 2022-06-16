@@ -3,7 +3,11 @@ use surf::http::url::ParseError;
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("StdIoError")]
-    StdIoError(#[from] std::io::Error),
+    StdIoError(std::io::Error),
+    #[error("BorshDeserializeError")]
+    BorshDeserializeError(std::io::Error, Vec<u8>),
+    #[error("RonDeserializeError")]
+    RonDeserializeError(ron::Error, Vec<u8>),
     #[error("UrlParseError")]
     UrlParseError(#[from] ParseError),
     #[error("SurfError")]

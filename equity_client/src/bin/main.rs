@@ -29,12 +29,10 @@ pub async fn main() {
 
     let client = EquityClient::new(&args.endpoint).unwrap();
     match &args.command {
-        Command::Account { address } => {
-            match client.get_account_details(address.to_owned()).await {
-                Ok(response) => info!("{:?}", response),
-                Err(e) => error!("{:?}", e),
-            }
-        }
+        Command::Account { address } => match client.get_account_details(address).await {
+            Ok(response) => info!("{:?}", response),
+            Err(e) => error!("{:?}", e),
+        },
         Command::Health => {
             let response = client.health().await.unwrap();
             info!("Health Response is: {:?}", response);
@@ -47,5 +45,6 @@ fn initialize_logger() {
     sub.with_ansi(true)
         .with_level(true)
         .with_line_number(true)
+        .with_file(true)
         .init();
 }

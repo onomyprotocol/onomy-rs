@@ -8,3 +8,5 @@ publish = false
 # reexport runtime or TLS level stuff, only data and serialization
 [dependencies]
 borsh = "0.9"
+derive-alias = "0.1.0"
+serde = { version = "1.0", features = ["derive"] }

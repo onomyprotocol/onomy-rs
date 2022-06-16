@@ -41,6 +41,7 @@ jobs:
           cargo test --all-features
           cargo test --release --all-features
           cargo run --bin run_test -- health --ci
+          cargo run --bin run_test -- get-response --ci
 
   rustfmt:
     name: Rustfmt

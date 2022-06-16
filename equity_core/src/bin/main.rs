@@ -3,12 +3,13 @@ use std::{net::SocketAddr, str::FromStr};
 use clap::Parser;
 use equity_core::{EquityService, Error};
 use equity_storage::EquityDatabase;
+use equity_types::Value;
 use tracing::info;
 
 #[derive(Parser)]
 #[clap(name = "equity_core", about = "Equity", version)]
 struct CliArgs {
-    #[clap(name = "listener", default_value = "0.0.0.0:4040", long = "listener")]
+    #[clap(name = "listener", default_value = "127.0.0.1:4040", long = "listener")]
     listener: String,
 }
 
@@ -36,11 +37,10 @@ fn initialize_logger() {
     sub.with_ansi(false)
         .with_level(true)
         .with_line_number(true)
+        .with_file(true)
         .init();
 }
 
 fn genesis_data(db: &EquityDatabase) {
-    let _ = db.insert("elvis", 100_000_u64);
-    let _ = db.insert("charles", 100_000);
-    let _ = db.insert("isaac", 100_000);
+    let _ = db.insert("testkey", Value(1337));
 }

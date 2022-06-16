@@ -34,6 +34,8 @@ pub struct CliArgs {
     pub test_mode: TestMode,
 }
 
+// TODO ctrlc shutdown
+
 #[tokio::main]
 async fn main() {
     let args = CliArgs::parse();
@@ -75,18 +77,18 @@ async fn main() {
         log_dir,
     };
     match args.test_mode {
-        TestMode::Health => {
+        mode @ (TestMode::Health | TestMode::GetResponse) => {
             cn.containers.push(Container::new(
                 "equity_core",
                 base_image,
                 &bin_dir.join("equity_core"),
-                ""
+                "--listener=0.0.0.0:4040",
             ));
             cn.containers.push(Container::new(
                 "test_runner",
                 base_image,
                 &bin_dir.join("test_runner"),
-                "health"
+                mode.typed(),
             ));
         }
     }

@@ -109,7 +109,7 @@ impl ContainerNetwork {
                 Err(e) => {
                     println!("force stopping all containers: {}\n", e);
                     force_stop_containers(&mut active_container_ids);
-                    return Err("failed when creating container".to_owned());
+                    return Err("failed when creating container".to_owned())
                 }
             }
         }
@@ -139,7 +139,7 @@ impl ContainerNetwork {
             Err(e) => {
                 println!("force stopping all containers: {}\n", e);
                 force_stop_containers(&mut active_container_ids);
-                return Err("failed when waiting on last container".to_owned());
+                return Err("failed when waiting on last container".to_owned())
             }
         }
 

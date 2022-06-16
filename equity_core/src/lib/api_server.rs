@@ -4,7 +4,6 @@ use axum::{extract::Path, routing, Extension, Router};
 use equity_storage::EquityDatabase;
 use equity_types::{EquityAddressResponse, HealthResponse};
 use hyper::StatusCode;
-use thiserror::Error;
 use tokio::task::JoinHandle;
 use tracing::info;
 
@@ -46,6 +45,8 @@ async fn health() -> Borsh<HealthResponse> {
     Borsh(HealthResponse { up: true })
 }
 
+// TODO should we use some binary instead of a path?
+
 async fn get_address(
     Path(key): Path<String>,
     Extension(state): Extension<EquityDatabase>,
@@ -55,20 +56,23 @@ async fn get_address(
         "Get Address API: address is: `{}`", key
     );
 
-    match state.get(&key.bytes().collect::<Vec<_>>()) {
-        Ok(value) => {
-            let response = Borsh(EquityAddressResponse {
-                owner: key,
-                value: value.unwrap(),
-            });
-
+    match state.get(key.as_bytes()) {
+        Ok(Some(value)) => {
+            let response = Borsh(EquityAddressResponse { owner: key, value });
             Ok(response)
         }
-        Err(_) => Err(StatusCode::NOT_FOUND),
+        Ok(None) => {
+            info!("not found");
+            Err(StatusCode::NOT_FOUND)
+        }
+        Err(e) => {
+            info!("error: {}", e);
+            Err(StatusCode::NOT_FOUND)
+        }
     }
 }
 
-#[derive(Debug, Error)]
+#[derive(Debug, thiserror::Error)]
 pub enum EquityError {
     #[error("An api server error occurred {0}")]
     ApiServer(#[from] hyper::Error),
