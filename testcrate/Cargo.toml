@@ -1,0 +1,18 @@
+[package]
+name = "testcrate"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+name = "common"
+path = "src/lib/common.rs"
+
+[dependencies]
+equity_client = { path = "../equity_client" }
+equity_storage = { path = "../equity_storage" }
+equity_types = { path = "../equity_types" }
+
+borsh = "0.9"
+clap = { version = "3.2", features = ["derive"] }
+tokio = { version = "1.19", features = ["full"] }

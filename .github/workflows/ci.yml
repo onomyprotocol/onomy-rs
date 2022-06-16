@@ -1,0 +1,103 @@
+name: onomy-rs CI
+
+on: ['pull_request']
+
+env:
+  RUST_BACKTRACE: 1
+  RUSTFLAGS: -D warnings
+
+jobs:
+  test_suite:
+    name: Test suite
+    runs-on: ubuntu-latest
+    env:
+      RUSTFLAGS: -D warnings
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      # docker caching for tests that use docker internally
+      - name: Docker Cache
+        uses: satackey/action-docker-layer-caching@v0.0.11
+        with:
+          continue-on-error: true
+      - name: Install Rust components
+        run: |
+          rustup set profile minimal
+          rustup default stable
+      - name: Get Rust version
+        run: echo "GITHUB_RUST_VERSION=$(cargo --version | cut -d' ' -f 2)" >> $GITHUB_ENV
+      - name: Cache Rust for Test suite
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-test_suite-${{ env.GITHUB_RUST_VERSION }}-${{ hashFiles('Cargo.lock') }}
+      - name: Run test suite
+        run: |
+          cargo test --all-features
+          cargo test --release --all-features
+          cargo run --bin run_test -- health --ci
+          cargo run --bin run_test -- get-response --ci
+
+  rustfmt:
+    name: Rustfmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      # Acquire the most recent nightly with a rustfmt component
+      - name: Install most recent Rustfmt
+        run: |
+          rustup set profile minimal
+          rustup default "nightly-$(curl -s https://rust-lang.github.io/rustup-components-history/x86_64-unknown-linux-gnu/rustfmt)"
+          rustup component add rustfmt
+      - name: Get Rust version
+        run: echo "GITHUB_RUST_VERSION=$(cargo --version | cut -d' ' -f 2)" >> $GITHUB_ENV
+      - name: Cache Rust for Rustfmt
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-rustfmt-${{ env.GITHUB_RUST_VERSION }}-${{ hashFiles('Cargo.lock') }}
+      - name: Run `cargo fmt`
+        run: |
+          cargo fmt --all -- --check
+          cargo install cargo-sort
+          bash testcrate/scripts/test_fmt.sh
+
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      # Acquire the most recent nightly with a clippy component
+      - name: Install Rust components
+        run: |
+          rustup set profile minimal
+          rustup default "nightly-$(curl -s https://rust-lang.github.io/rustup-components-history/x86_64-unknown-linux-gnu/clippy)"
+      - name: Get Rust version
+        run: echo "GITHUB_RUST_VERSION=$(cargo --version | cut -d' ' -f 2)" >> $GITHUB_ENV
+      - name: Cache Rust for Clippy
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-clippy-${{ env.GITHUB_RUST_VERSION }}-${{ hashFiles('Cargo.lock') }}
+      - name: Install most recent Clippy
+        run: |
+          rustup component add clippy
+      - name: Run `cargo clippy`
+        run: |
+          cargo clippy --all --all-targets --all-features -- -D clippy::all
