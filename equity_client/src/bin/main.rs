@@ -20,7 +20,7 @@ struct CliArgs {
 enum Command {
     Account { address: String },
     Health,
-    Transaction { key_domain: u8, value_range: u8 }
+    Transaction { key_domain: u64, value_range: u64, iterations: u8 }
 }
 
 #[tokio::main]
@@ -38,9 +38,11 @@ pub async fn main() {
             let response = client.health().await.unwrap();
             info!("Health Response is: {:?}", response);
         },
-        Command::Transaction { key_domain, value_range } => {
+        Command::Transaction { key_domain, value_range, iterations } => {
             println!("DB Key Domain: {:?}", key_domain);
             println!("DB Key Range: {:?}", value_range);
+            println!("Iterations: {:?}", iterations);
+            EquityClient::create_transaction(&key_domain, &value_range, &iterations);
         }
     }
 }

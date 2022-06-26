@@ -30,6 +30,12 @@ pub struct EquityAddressResponse {
 }
 
 derive_common! {
+pub struct EquityTransactionResponse {
+    
+}
+}
+
+derive_common! {
 pub struct HealthResponse {
     pub up: bool,
 }
