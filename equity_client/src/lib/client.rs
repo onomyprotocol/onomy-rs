@@ -89,7 +89,7 @@ impl EquityClient {
         .await
     }
 
-    pub fn create_transaction(key_domain: &u64, value_range: &u64, iterations: &u8) -> () {
+    pub fn test_transaction(key_domain: &u64, value_range: &u64, iterations: &u8) -> String {
         let mut rng = rand::thread_rng();
 
         let mut keys_values = HashMap::new();
@@ -99,15 +99,18 @@ impl EquityClient {
             keys_values.insert(o, p);
         }
 
-        let keypair = Keypair::generate_with_osrng();
+        serde_json::to_string(&keys_values).unwrap()
+    }
 
-        let message = serde_json::to_string(&keys_values).unwrap();
+    pub fn create_transaction(message: &String) -> () {
+        
+        let keypair = Keypair::generate_with_osrng();
 
         println!("message: {}", message);
 
         // Create a hash digest object which we'll feed the message into:
         let mut digest: Sha512 = Sha512::new();
-        digest.update(&message);
+        digest.update(message);
     
         let context: &[u8] = b"onomy-rs_transaction";
     
@@ -119,7 +122,7 @@ impl EquityClient {
         hash.copy_from_slice(tmp.as_slice());
     
         let network_message0 = FullMessage {
-            body: message,
+            body: message.to_string(),
             hash,
             signature,
         };
