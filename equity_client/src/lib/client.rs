@@ -136,9 +136,11 @@ impl EquityClient {
         let digest_string: String = format!("{:X}", digest.clone().finalize());
     
         let signature: Signature = self.private_key.sign(&digest_string.as_bytes());
-    
+        
+        let public_key_string = serde_json::to_string(&self.public_key).unwrap();
+
         let network_message0 = FullMessage {
-            public_key: serde_json::to_string(&self.public_key).unwrap(),
+            public_key: public_key_string.clone(),
             body: message.to_string(),
             hash: digest_string.clone(),
             signature,
@@ -149,18 +151,22 @@ impl EquityClient {
             serde_json::to_string_pretty(&network_message0).unwrap()
         );
     
-        let s = serde_json::to_string(&network_message0).unwrap();
-    
-        // (s can be sent over a channel)
-    
+        serde_json::to_string(&network_message0).unwrap();
+
+        
+        /*
+        let return_public_key: VerificationKey = serde_json::from_str(&public_key_string).unwrap();
+
+        /*
+
         let network_message1 = serde_json::from_str(&s).unwrap();
         assert_eq!(network_message0, network_message1);
-    
-        // TODO need wrapper for SHA512 or maybe we shouldn't be sending the hash over
-        // network, and instead using the plain `sign/verify`
-        self
-            .public_key
-            .verify(&signature.into(), &digest_string.as_bytes());
+        */ 
+        assert!(return_public_key
+            .verify(&signature.into(), &digest_string.as_bytes()).is_ok()
+        );
+        */
+        
     } 
 }
 

@@ -43,7 +43,8 @@ pub async fn main() {
             println!("DB Key Range: {:?}", value_range);
             println!("Iterations: {:?}", iterations);
             let tester = client.test_transaction(&key_domain, &value_range, &iterations);
-            client.create_transaction(&tester);
+            let transaction = client.create_transaction(&tester);
+            
         }
     }
 }
