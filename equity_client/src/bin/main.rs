@@ -43,7 +43,7 @@ pub async fn main() {
             println!("DB Key Range: {:?}", value_range);
             println!("Iterations: {:?}", iterations);
             let tester = EquityClient::test_transaction(&key_domain, &value_range, &iterations);
-            EquityClient::create_transaction(&tester);
+            client.create_transaction(&tester);
         }
     }
 }

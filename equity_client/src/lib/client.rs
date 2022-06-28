@@ -5,16 +5,18 @@ use std::{
 };
 
 use borsh::BorshDeserialize;
-use equity_types::{EquityAddressResponse, EquityTransactionResponse, HealthResponse};
+use equity_types::{EquityAddressResponse, HealthResponse};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use surf::Url;
 use tokio::time::sleep;
 use tracing::info;
 use std::collections::HashMap;
-use rand::Rng;
+use rand::{Rng, thread_rng};
 
-use crate::signature::*;
+use ed25519_consensus::{Signature, SigningKey, VerificationKey};
+use sha2::{Digest, Sha512};
+
 use crate::Error;
 
 
@@ -22,14 +24,15 @@ pub struct EquityClient {
     surf_url: Url,
     url_health: String,
     url_address: String,
+    private_key: SigningKey,
+    public_key: VerificationKey
 }
 
 /// Includes along with the real `body` message a hash and signature
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 struct FullMessage {
     body: String,
-    // going with Vec for now because of custom serialization that would need to be done
-    hash: Vec<u8>,
+    hash: String,
     signature: Signature,
 }
 
@@ -48,10 +51,15 @@ pub async fn ron_get<T: DeserializeOwned>(url: &Url) -> crate::Result<T> {
 impl EquityClient {
     pub fn new(url: &str) -> Result<Self, Error> {
         let s_url = Url::from_str(url)?;
+        let sk = SigningKey::new(thread_rng());
+        let vk = VerificationKey::from(&sk);
+
         let res = Self {
             surf_url: s_url,
             url_health: "health".to_owned(),
             url_address: "address/".to_owned(),
+            private_key: sk,
+            public_key: vk
         };
         info!(target = "equity-client", "URL is: {:?}", res.surf_url);
         Ok(res)
@@ -102,28 +110,21 @@ impl EquityClient {
         serde_json::to_string(&keys_values).unwrap()
     }
 
-    pub fn create_transaction(message: &String) -> () {
+    pub fn create_transaction(&self, message: &String) -> () {
         
-        let keypair = Keypair::generate_with_osrng();
-
         println!("message: {}", message);
 
         // Create a hash digest object which we'll feed the message into:
         let mut digest: Sha512 = Sha512::new();
         digest.update(message);
+
+        let digest_string: String = format!("{:X}", digest.clone().finalize());
     
-        let context: &[u8] = b"onomy-rs_transaction";
-    
-        let signature: Signature = keypair
-            .sign_prehashed(digest.clone(), Some(context))
-            .unwrap();
-        let tmp = digest.clone().finalize();
-        let mut hash = vec![0u8; 64];
-        hash.copy_from_slice(tmp.as_slice());
+        let signature: Signature = self.private_key.sign(&digest_string.as_bytes());
     
         let network_message0 = FullMessage {
             body: message.to_string(),
-            hash,
+            hash: digest_string.clone(),
             signature,
         };
     
@@ -141,9 +142,9 @@ impl EquityClient {
     
         // TODO need wrapper for SHA512 or maybe we shouldn't be sending the hash over
         // network, and instead using the plain `sign/verify`
-        keypair
-            .public
-            .verify_prehashed(digest, Some(context), &network_message1.signature).unwrap();
+        self
+            .public_key
+            .verify(&signature.into(), &digest_string.as_bytes());
     } 
 }
 
