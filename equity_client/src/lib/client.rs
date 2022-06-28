@@ -25,15 +25,24 @@ pub struct EquityClient {
     url_health: String,
     url_address: String,
     private_key: SigningKey,
-    public_key: VerificationKey
+    public_key: VerificationKey,
+    nonce: u64
 }
 
 /// Includes along with the real `body` message a hash and signature
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 struct FullMessage {
+    public_key: String,
     body: String,
     hash: String,
     signature: Signature,
+}
+
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+struct Body {
+    nonce: u64,
+    keys_values: String
 }
 
 pub async fn borsh_get<T: BorshDeserialize>(url: &Url) -> crate::Result<T> {
@@ -59,7 +68,8 @@ impl EquityClient {
             url_health: "health".to_owned(),
             url_address: "address/".to_owned(),
             private_key: sk,
-            public_key: vk
+            public_key: vk,
+            nonce: 1
         };
         info!(target = "equity-client", "URL is: {:?}", res.surf_url);
         Ok(res)
@@ -97,7 +107,7 @@ impl EquityClient {
         .await
     }
 
-    pub fn test_transaction(key_domain: &u64, value_range: &u64, iterations: &u8) -> String {
+    pub fn test_transaction(&self, key_domain: &u64, value_range: &u64, iterations: &u8) -> String {
         let mut rng = rand::thread_rng();
 
         let mut keys_values = HashMap::new();
@@ -107,7 +117,12 @@ impl EquityClient {
             keys_values.insert(o, p);
         }
 
-        serde_json::to_string(&keys_values).unwrap()
+        let body0 = Body {
+            nonce: self.nonce,
+            keys_values: serde_json::to_string(&keys_values).unwrap()
+        };
+
+        serde_json::to_string(&body0).unwrap()
     }
 
     pub fn create_transaction(&self, message: &String) -> () {
@@ -123,6 +138,7 @@ impl EquityClient {
         let signature: Signature = self.private_key.sign(&digest_string.as_bytes());
     
         let network_message0 = FullMessage {
+            public_key: serde_json::to_string(&self.public_key).unwrap(),
             body: message.to_string(),
             hash: digest_string.clone(),
             signature,
