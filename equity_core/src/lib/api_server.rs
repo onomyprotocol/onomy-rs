@@ -2,7 +2,7 @@ use std::net::{SocketAddr, TcpListener};
 
 use axum::{extract::Path, routing, Extension, Router};
 use equity_storage::EquityDatabase;
-use equity_types::{EquityAddressResponse, HealthResponse};
+use equity_types::{EquityAddressResponse, HealthResponse, PostTransactionResponse};
 use hyper::StatusCode;
 use tokio::task::JoinHandle;
 use tracing::info;
@@ -16,6 +16,7 @@ pub async fn start_api_server(
     let router = Router::new()
         .route("/health", routing::get(health))
         .route("/address/:key", routing::get(get_address))
+        .route("/transaction", routing::get(transaction))
         .layer(Extension(db));
 
     let listener = TcpListener::bind(&listener)?;
@@ -43,6 +44,11 @@ pub async fn start_api_server(
 async fn health() -> Borsh<HealthResponse> {
     info!(target = "equity-core", "Health API");
     Borsh(HealthResponse { up: true })
+}
+
+async fn transaction() -> Borsh<PostTransactionResponse> {
+    info!(target = "equity-core", "Transaction API");
+    Borsh(PostTransactionResponse { success: true })
 }
 
 // TODO should we use some binary instead of a path?

@@ -30,8 +30,8 @@ pub struct EquityAddressResponse {
 }
 
 derive_common! {
-pub struct EquityTransactionResponse {
-    
+pub struct PostTransactionResponse {
+    pub success: bool,
 }
 }
 

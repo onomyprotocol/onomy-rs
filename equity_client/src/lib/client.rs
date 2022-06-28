@@ -5,7 +5,7 @@ use std::{
 };
 
 use borsh::BorshDeserialize;
-use equity_types::{EquityAddressResponse, HealthResponse};
+use equity_types::{EquityAddressResponse, HealthResponse, PostTransactionResponse};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use surf::Url;
@@ -23,13 +23,14 @@ use crate::Error;
 pub struct EquityClient {
     surf_url: Url,
     url_health: String,
+    url_transaction: String,
     url_address: String,
     private_key: SigningKey,
     public_key: VerificationKey,
     nonce: u64
 }
 
-/// Includes along with the real `body` message a hash and signature
+
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 struct FullMessage {
     public_key: String,
@@ -51,6 +52,12 @@ pub async fn borsh_get<T: BorshDeserialize>(url: &Url) -> crate::Result<T> {
         .map_err(|e| Error::BorshDeserializeError(e, response))
 }
 
+pub async fn borsh_post<T: BorshDeserialize>(url: &Url, body: String) -> crate::Result<T> {
+    let response = surf::post(url).body(body).recv_bytes().await?;
+    BorshDeserialize::try_from_slice(&response)
+        .map_err(|e| Error::BorshDeserializeError(e, response))
+}
+
 /// Used for message debugging
 pub async fn ron_get<T: DeserializeOwned>(url: &Url) -> crate::Result<T> {
     let response = surf::get(url).recv_bytes().await?;
@@ -66,6 +73,7 @@ impl EquityClient {
         let res = Self {
             surf_url: s_url,
             url_health: "health".to_owned(),
+            url_transaction: "transaction".to_owned(),
             url_address: "address/".to_owned(),
             private_key: sk,
             public_key: vk,
@@ -125,7 +133,7 @@ impl EquityClient {
         serde_json::to_string(&body0).unwrap()
     }
 
-    pub fn create_transaction(&self, message: &String) -> () {
+    pub fn create_transaction(&self, message: &String) -> String {
         
         println!("message: {}", message);
 
@@ -151,9 +159,9 @@ impl EquityClient {
             serde_json::to_string_pretty(&network_message0).unwrap()
         );
     
-        serde_json::to_string(&network_message0).unwrap();
+        serde_json::to_string(&network_message0).unwrap()
 
-        
+
         /*
         let return_public_key: VerificationKey = serde_json::from_str(&public_key_string).unwrap();
 
@@ -167,7 +175,12 @@ impl EquityClient {
         );
         */
         
-    } 
+    }
+
+
+    pub async fn post_transaction(&self, transaction: String) -> crate::Result<PostTransactionResponse> {
+        borsh_post(&self.surf_url.join(&self.url_transaction)?, transaction).await
+    }
 }
 
 impl FromStr for EquityClient {
