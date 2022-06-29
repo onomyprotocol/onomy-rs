@@ -32,7 +32,7 @@ pub struct EquityClient {
 
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
-struct FullMessage {
+pub struct FullMessage {
     public_key: String,
     body: String,
     hash: String,
@@ -138,7 +138,7 @@ impl EquityClient {
         serde_json::to_string(&body0).unwrap()
     }
 
-    pub fn create_transaction(&self, message: &String) -> String {
+    pub fn create_transaction(&self, message: &String) -> FullMessage {
         
         println!("message: {}", message);
 
@@ -152,19 +152,12 @@ impl EquityClient {
         
         let public_key_string = serde_json::to_string(&self.public_key).unwrap();
 
-        let network_message0 = FullMessage {
+        FullMessage {
             public_key: public_key_string.clone(),
             body: message.to_string(),
             hash: digest_string.clone(),
             signature,
-        };
-    
-        println!(
-            "network message: {}",
-            serde_json::to_string_pretty(&network_message0).unwrap()
-        );
-    
-        serde_json::to_string(&network_message0).unwrap()
+        }
 
 
         /*
@@ -183,8 +176,11 @@ impl EquityClient {
     }
 
 
-    pub async fn post_transaction(&self, transaction: String) -> crate::Result<PostTransactionResponse> {
-        borsh_post(&self.surf_url.join(&self.url_transaction)?, transaction).await
+    pub async fn post_transaction(&self, transaction: FullMessage) -> crate::Result<PostTransactionResponse> {
+        let json_body = serde_json::to_string(&transaction).unwrap();
+        let url = &self.surf_url.clone().join(&self.url_transaction)?;
+
+        borsh_post(&url, json_body).await
     }
 }
 
