@@ -64,6 +64,11 @@ pub async fn ron_get<T: DeserializeOwned>(url: &Url) -> crate::Result<T> {
     ron::de::from_bytes(&response).map_err(|e| Error::RonDeserializeError(e, response))
 }
 
+pub async fn ron_post<T: DeserializeOwned>(url: &Url, body: String) -> crate::Result<T> {
+    let response = surf::post(url).body(body).recv_bytes().await?;
+    ron::de::from_bytes(&response).map_err(|e| Error::RonDeserializeError(e, response))
+}
+
 impl EquityClient {
     pub fn new(url: &str) -> Result<Self, Error> {
         let s_url = Url::from_str(url)?;

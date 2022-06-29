@@ -16,7 +16,7 @@ pub async fn start_api_server(
     let router = Router::new()
         .route("/health", routing::get(health))
         .route("/address/:key", routing::get(get_address))
-        .route("/transaction", routing::get(transaction))
+        .route("/transaction", routing::get(transaction).post(transaction))
         .layer(Extension(db));
 
     let listener = TcpListener::bind(&listener)?;
