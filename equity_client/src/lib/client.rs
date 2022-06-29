@@ -78,7 +78,7 @@ impl EquityClient {
         let res = Self {
             surf_url: s_url,
             url_health: "health".to_owned(),
-            url_transaction: "transaction".to_owned(),
+            url_transaction: "transaction/".to_owned(),
             url_address: "address/".to_owned(),
             private_key: sk,
             public_key: vk,
@@ -178,9 +178,11 @@ impl EquityClient {
 
     pub async fn post_transaction(&self, transaction: FullMessage) -> crate::Result<PostTransactionResponse> {
         let json_body = serde_json::to_string(&transaction).unwrap();
-        let url = &self.surf_url.clone().join(&self.url_transaction)?;
-
-        borsh_post(&url, json_body).await
+        let mut url = self.surf_url.clone();
+        url.set_path(&self.url_transaction);
+        println!("{}", &url);
+        println!("{}", &url.join(&transaction.hash)?);
+        borsh_post(&url.join(&transaction.hash)?, json_body).await
     }
 }
 
