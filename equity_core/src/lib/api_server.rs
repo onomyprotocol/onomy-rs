@@ -7,7 +7,7 @@ use hyper::StatusCode;
 use tokio::task::JoinHandle;
 use tracing::info;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+
 
 use ed25519_consensus::{Signature, SigningKey, VerificationKey};
 use sha2::{Digest, Sha512};
@@ -16,10 +16,17 @@ use crate::{borsh::Borsh, Error};
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct FullMessage {
-    public_key: String,
-    body: String,
+    body: Body,
     hash: String,
     signature: Signature,
+}
+
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+pub struct Body {
+    public_key: VerificationKey,
+    nonce: u64,
+    keys_values: String
 }
 
 pub async fn start_api_server(
@@ -63,7 +70,6 @@ async fn transaction(
     Json(payload): Json<FullMessage>,
 ) -> Borsh<PostTransactionResponse> {
     info!(target = "equity-core", "Transaction API");
-    println!("{:?}", payload);
     Borsh(PostTransactionResponse { success: true })
 }
 

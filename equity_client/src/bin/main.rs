@@ -28,7 +28,7 @@ pub async fn main() {
     let args = CliArgs::parse();
     initialize_logger();
 
-    let client = EquityClient::new(&args.endpoint).unwrap();
+    let mut client = EquityClient::new(&args.endpoint).unwrap();
     match &args.command {
         Command::Account { address } => match client.get_account_details(address).await {
             Ok(response) => info!("{:?}", response),
@@ -42,6 +42,7 @@ pub async fn main() {
             println!("DB Key Domain: {:?}", key_domain);
             println!("DB Key Range: {:?}", value_range);
             println!("Iterations: {:?}", iterations);
+            client.noncer();
             let tester = client.test_transaction(&key_domain, &value_range, &iterations);
             let transaction = client.create_transaction(&tester);
             let response = client.post_transaction(transaction).await.unwrap();

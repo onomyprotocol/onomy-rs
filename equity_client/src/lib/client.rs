@@ -33,15 +33,15 @@ pub struct EquityClient {
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct FullMessage {
-    public_key: String,
-    body: String,
+    body: Body,
     hash: String,
     signature: Signature,
 }
 
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
-struct Body {
+pub struct Body {
+    public_key: VerificationKey,
     nonce: u64,
     keys_values: String
 }
@@ -88,6 +88,10 @@ impl EquityClient {
         Ok(res)
     }
 
+    pub fn noncer(&mut self) {
+        self.nonce += 1;
+    }
+
     /// Waits until the client successfully gets a healthy response
     pub async fn wait_for_healthy(&self, timeout: Duration) -> crate::Result<()> {
         let end = Instant::now() + timeout;
@@ -120,7 +124,7 @@ impl EquityClient {
         .await
     }
 
-    pub fn test_transaction(&self, key_domain: &u64, value_range: &u64, iterations: &u8) -> String {
+    pub fn test_transaction(&self, key_domain: &u64, value_range: &u64, iterations: &u8) -> Body {
         let mut rng = rand::thread_rng();
 
         let mut keys_values = HashMap::new();
@@ -130,30 +134,26 @@ impl EquityClient {
             keys_values.insert(o, p);
         }
 
-        let body0 = Body {
+        Body {
+            public_key: self.public_key,
             nonce: self.nonce,
             keys_values: serde_json::to_string(&keys_values).unwrap()
-        };
-
-        serde_json::to_string(&body0).unwrap()
+        }
     }
 
-    pub fn create_transaction(&self, message: &String) -> FullMessage {
+    pub fn create_transaction(&self, message: &Body) -> FullMessage {
         
-        println!("message: {}", message);
+        let message_string = serde_json::to_string(&message).unwrap();
 
         let mut digest: Sha512 = Sha512::new();
-        digest.update(message);
+        digest.update(message_string);
 
         let digest_string: String = format!("{:X}", digest.clone().finalize());
     
         let signature: Signature = self.private_key.sign(&digest_string.as_bytes());
-        
-        let public_key_string = serde_json::to_string(&self.public_key).unwrap();
 
         FullMessage {
-            public_key: public_key_string,
-            body: message.to_string(),
+            body: message.clone(),
             hash: digest_string,
             signature,
         }
