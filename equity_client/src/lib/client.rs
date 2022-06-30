@@ -52,8 +52,8 @@ pub async fn borsh_get<T: BorshDeserialize>(url: &Url) -> crate::Result<T> {
         .map_err(|e| Error::BorshDeserializeError(e, response))
 }
 
-pub async fn borsh_post<T: BorshDeserialize>(url: &Url, body: String) -> crate::Result<T> {
-    let response = surf::post(url).body(body).recv_bytes().await?;
+pub async fn borsh_post<T: BorshDeserialize>(url: &Url, body: FullMessage) -> crate::Result<T> {
+    let response = surf::post(url).body_json(&body)?.recv_bytes().await?;
     BorshDeserialize::try_from_slice(&response)
         .map_err(|e| Error::BorshDeserializeError(e, response))
 }
@@ -142,7 +142,6 @@ impl EquityClient {
         
         println!("message: {}", message);
 
-        // Create a hash digest object which we'll feed the message into:
         let mut digest: Sha512 = Sha512::new();
         digest.update(message);
 
@@ -153,36 +152,18 @@ impl EquityClient {
         let public_key_string = serde_json::to_string(&self.public_key).unwrap();
 
         FullMessage {
-            public_key: public_key_string.clone(),
+            public_key: public_key_string,
             body: message.to_string(),
-            hash: digest_string.clone(),
+            hash: digest_string,
             signature,
         }
-
-
-        /*
-        let return_public_key: VerificationKey = serde_json::from_str(&public_key_string).unwrap();
-
-        /*
-
-        let network_message1 = serde_json::from_str(&s).unwrap();
-        assert_eq!(network_message0, network_message1);
-        */ 
-        assert!(return_public_key
-            .verify(&signature.into(), &digest_string.as_bytes()).is_ok()
-        );
-        */
-        
     }
 
 
     pub async fn post_transaction(&self, transaction: FullMessage) -> crate::Result<PostTransactionResponse> {
-        let json_body = serde_json::to_string(&transaction).unwrap();
         let mut url = self.surf_url.clone();
         url.set_path(&self.url_transaction);
-        println!("{}", &url);
-        println!("{}", &url.join(&transaction.hash)?);
-        borsh_post(&url.join(&transaction.hash)?, json_body).await
+        borsh_post(&url.join(&transaction.hash)?, transaction).await
     }
 }
 

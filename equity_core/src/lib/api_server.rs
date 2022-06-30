@@ -60,10 +60,10 @@ async fn health() -> Borsh<HealthResponse> {
 }
 
 async fn transaction(
-    // Json(payload): Json<serde_json::Value>,
+    Json(payload): Json<FullMessage>,
 ) -> Borsh<PostTransactionResponse> {
     info!(target = "equity-core", "Transaction API");
-    // println!("{:?}", payload);
+    println!("{:?}", payload);
     Borsh(PostTransactionResponse { success: true })
 }
 
