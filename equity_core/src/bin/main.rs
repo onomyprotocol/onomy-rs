@@ -42,5 +42,5 @@ fn initialize_logger() {
 }
 
 fn genesis_data(db: &EquityDatabase) {
-    let _ = db.insert("testkey", Value(1337));
+    let _ = db.set("testkey", Value(1337));
 }

@@ -17,7 +17,7 @@ impl EquityStorage for InMemoryDb {
             .cloned())
     }
 
-    fn insert(&self, key: Vec<u8>, value: Vec<u8>) -> crate::DatabaseResult<Option<Vec<u8>>> {
+    fn set(&self, key: Vec<u8>, value: Vec<u8>) -> crate::DatabaseResult<Option<Vec<u8>>> {
         Ok(self
             .data_holder
             .lock()
