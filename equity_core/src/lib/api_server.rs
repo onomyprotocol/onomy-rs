@@ -2,7 +2,7 @@ use std::net::{SocketAddr, TcpListener};
 
 use axum::{extract::Path, routing, Extension, Json, Router};
 use equity_storage::EquityDatabase;
-use equity_types::{EquityAddressResponse, HealthResponse, PostTransactionResponse};
+use equity_types::{EquityAddressResponse, HealthResponse, PostTransactionResponse, Value};
 use hyper::StatusCode;
 use tokio::task::JoinHandle;
 use tracing::info;
@@ -68,9 +68,31 @@ async fn health() -> Borsh<HealthResponse> {
 
 async fn transaction(
     Json(payload): Json<FullMessage>,
-) -> Borsh<PostTransactionResponse> {
+    Extension(state): Extension<EquityDatabase>,
+) -> Result<Borsh<PostTransactionResponse>, StatusCode> {
+
     info!(target = "equity-core", "Transaction API");
-    Borsh(PostTransactionResponse { success: true })
+
+    let key:&[u8] = payload.body.public_key.as_bytes();
+
+    match state.get(key) {
+        Ok(Some(value)) => {
+            let _response = Borsh(EquityAddressResponse { owner: "test".to_string(), value });
+            Ok(Borsh(PostTransactionResponse { success: true }))
+        }
+        Ok(None) => {
+            info!("not found");
+            //Err(StatusCode::NOT_FOUND)
+            Ok(Borsh(PostTransactionResponse { success: true }))
+        }
+        Err(e) => {
+            info!("error: {}", e);
+            Err(StatusCode::NOT_FOUND)
+        }
+    }
+
+    
+    
 }
 
 // TODO should we use some binary instead of a path?
