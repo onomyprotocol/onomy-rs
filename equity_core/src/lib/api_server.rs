@@ -2,7 +2,7 @@ use std::net::{SocketAddr, TcpListener};
 
 use axum::{extract::Path, routing, Extension, Json, Router};
 use equity_storage::EquityDatabase;
-use equity_types::{EquityAddressResponse, HealthResponse, PostTransactionResponse, Value};
+use equity_types::{EquityAddressResponse, HealthResponse, PostTransactionResponse};
 use hyper::StatusCode;
 use tokio::task::JoinHandle;
 use tracing::info;
@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 
 use ed25519_consensus::{Signature, VerificationKey};
 use sha2::{Digest, Sha512};
+use std::collections::HashMap;
 
 use crate::{borsh::Borsh, Error};
 
@@ -26,7 +27,7 @@ pub struct FullMessage {
 pub struct Body {
     public_key: VerificationKey,
     nonce: u64,
-    keys_values: String
+    keys_values: HashMap<u64, u64>
 }
 
 pub async fn start_api_server(

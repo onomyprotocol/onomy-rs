@@ -43,7 +43,7 @@ pub struct FullMessage {
 pub struct Body {
     public_key: VerificationKey,
     nonce: u64,
-    keys_values: String
+    keys_values: HashMap<u64, u64>
 }
 
 pub async fn borsh_get<T: BorshDeserialize>(url: &Url) -> crate::Result<T> {
@@ -137,7 +137,7 @@ impl EquityClient {
         Body {
             public_key: self.public_key,
             nonce: self.nonce,
-            keys_values: serde_json::to_string(&keys_values).unwrap()
+            keys_values: keys_values
         }
     }
 
