@@ -85,13 +85,14 @@ async fn transaction(
             info!("nonce: {}", previous_nonce);
         }
         Ok(None) => {
-            info!("nonce not found");
-            
+            info!("nonce not found");   
         }
         Err(e) => {
             info!("error: {}", e);
         }
     }
+
+
 
     if payload.body.nonce > previous_nonce {
         Ok(Borsh(PostTransactionResponse { 
@@ -99,8 +100,13 @@ async fn transaction(
             nonce: payload.body.nonce  
         }))
     } else {
-        Err(StatusCode::NOT_FOUND)
+        Ok(Borsh(PostTransactionResponse { 
+            success: false, 
+            nonce: previous_nonce  
+        }))
     }
+
+    // payload.body.public_key.verify(&payload.signature, &payload.body);
     
 }
 
