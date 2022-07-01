@@ -32,6 +32,7 @@ pub struct EquityAddressResponse {
 derive_common! {
 pub struct PostTransactionResponse {
     pub success: bool,
+    pub nonce: u64,
 }
 }
 

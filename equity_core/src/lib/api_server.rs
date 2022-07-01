@@ -9,7 +9,7 @@ use tracing::info;
 use serde::{Deserialize, Serialize};
 
 
-use ed25519_consensus::{Signature, SigningKey, VerificationKey};
+use ed25519_consensus::{Signature, VerificationKey};
 use sha2::{Digest, Sha512};
 
 use crate::{borsh::Borsh, Error};
@@ -75,23 +75,32 @@ async fn transaction(
 
     let key:&[u8] = payload.body.public_key.as_bytes();
 
+    // Mapping [public_key -> nonce] 
+
+    let mut previous_nonce: u64 = 0;
+
     match state.get(key) {
         Ok(Some(value)) => {
-            let _response = Borsh(EquityAddressResponse { owner: "test".to_string(), value });
-            Ok(Borsh(PostTransactionResponse { success: true }))
+            previous_nonce = value;
+            info!("nonce: {}", previous_nonce);
         }
         Ok(None) => {
-            info!("not found");
-            //Err(StatusCode::NOT_FOUND)
-            Ok(Borsh(PostTransactionResponse { success: true }))
+            info!("nonce not found");
+            
         }
         Err(e) => {
             info!("error: {}", e);
-            Err(StatusCode::NOT_FOUND)
         }
     }
 
-    
+    if payload.body.nonce > previous_nonce {
+        Ok(Borsh(PostTransactionResponse { 
+            success: true, 
+            nonce: payload.body.nonce  
+        }))
+    } else {
+        Err(StatusCode::NOT_FOUND)
+    }
     
 }
 
