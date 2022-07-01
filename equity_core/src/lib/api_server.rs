@@ -120,7 +120,8 @@ async fn transaction(
                     nonce: payload.body.nonce  
                 }))
             }
-            Err(_e) => {
+            Err(e) => {
+                info!("signature error: {}", e);
                 Ok(Borsh(PostTransactionResponse { 
                     success: false, 
                     nonce: payload.body.nonce  
