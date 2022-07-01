@@ -736,6 +736,7 @@ dependencies = [
  "ed25519-consensus",
  "equity_storage",
  "equity_types",
+ "futures",
  "hyper",
  "mime",
  "ron",

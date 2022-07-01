@@ -3,6 +3,8 @@ use std::net::SocketAddr;
 use equity_storage::EquityDatabase;
 use tokio::task::JoinHandle;
 
+use futures::future::join_all;
+
 use crate::{
     api_server::{start_api_server, EquityError},
     Error,
@@ -22,8 +24,6 @@ impl EquityService {
     }
 
     pub async fn run(self) {
-        for task in self.tasks {
-            let _ = task.await;
-        }
+        join_all(self.tasks).await;
     }
 }
