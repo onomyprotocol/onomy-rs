@@ -757,7 +757,8 @@ version = "0.1.0"
 name = "equity_storage"
 version = "0.1.0"
 dependencies = [
- "borsh",
+ "serde",
+ "serde_json",
  "thiserror",
 ]
 
