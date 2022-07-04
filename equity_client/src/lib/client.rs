@@ -143,7 +143,7 @@ impl EquityClient {
 
     pub fn create_transaction(&self, message: &Body) -> FullMessage {
         
-        let message_string = serde_json::to_string(&message).unwrap();
+        let message_string = serde_json::to_string(message).unwrap();
 
         let mut digest: Sha512 = Sha512::new();
         digest.update(message_string);

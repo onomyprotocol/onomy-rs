@@ -76,65 +76,53 @@ async fn transaction(
 
     let public_key:&[u8] = payload.body.public_key.as_bytes();
 
-    // First rule: Transaction Nonce > All Previous Nonce 
+    // First rule: Transction ID (Hash) is unique 
 
-    let mut previous_nonce: u64 = 0;
+    let mut tx_record: FullMessage;
 
-    // Check database if Mapping [public_key -> nonce] exists
+    // Check database if Mapping [hash -> tx_record] exists
     // If value exists 
     // THEN previous_nonce == value
     // ELSE previous_nonce == 0
 
-    match state.get(public_key) {
-        Ok(Some(value)) => {
-            previous_nonce = value;
-            info!("nonce: {}", previous_nonce);
-        }
-        Ok(None) => {
-            info!("nonce not found");   
-        }
-        Err(e) => {
-            info!("error: {}", e);
-        }
-    }
+    if let Ok(Some(value)) = state.get::<FullMessage>(&payload.hash.as_bytes()) {
+        return Ok(Borsh(PostTransactionResponse { 
+            success: false, 
+            msg: "TX already exists".to_string()  
+        }))
+    };
 
-    // IF tx nonce > previous_nonce
+    // IF tx_record does not exist in database
     // THEN Verify signature
     // ELSE Send Response with Success: False and previous nonce
 
-    if payload.body.nonce > previous_nonce {
-
-        let message_string = serde_json::to_string(&payload.body).unwrap();
-
-        let mut digest: Sha512 = Sha512::new();
-        digest.update(message_string);
-
-        let digest_string: String = format!("{:X}", digest.clone().finalize());
-
-        let verified = payload.body.public_key.verify(&payload.signature, &digest_string.as_bytes());
-        
-        // Signature verified? 
-        match verified {
-            Ok(_o) => {
-                Ok(Borsh(PostTransactionResponse { 
-                    success: true, 
-                    nonce: payload.body.nonce  
-                }))
-            }
-            Err(e) => {
-                info!("signature error: {}", e);
-                Ok(Borsh(PostTransactionResponse { 
-                    success: false, 
-                    nonce: payload.body.nonce  
-                }))
-            }
-        }  
-    } else {
-        Ok(Borsh(PostTransactionResponse { 
+    if let Err(e) = verify_body(&payload) {
+        return Ok(Borsh(PostTransactionResponse { 
             success: false, 
-            nonce: previous_nonce  
+            msg: e.to_string()  
         }))
-    }
+    };
+
+    Ok(Borsh(PostTransactionResponse { 
+        success: true, 
+        msg: "TX Validated".to_string()  
+    }))
+    
+}
+
+fn verify_body (
+    payload: &FullMessage
+) -> Result<(), ed25519_consensus::Error> {
+    
+    let message_string = serde_json::to_string(&payload.body.clone()).unwrap();
+
+    let mut digest: Sha512 = Sha512::new();
+    
+    digest.update(message_string);
+
+    let digest_string: String = format!("{:X}", digest.clone().finalize());
+
+    payload.body.public_key.verify(&payload.signature, &digest_string.as_bytes())
 }
 
 // TODO should we use some binary instead of a path?
