@@ -4,14 +4,14 @@ use axum::{extract::Path, routing, Extension, Json, Router};
 use equity_storage::EquityDatabase;
 use equity_types::{EquityAddressResponse, HealthResponse, PostTransactionResponse};
 use hyper::StatusCode;
-use tokio::task::JoinHandle;
+use tokio::task::{JoinHandle, spawn_blocking};
 use tracing::info;
 use serde::{Deserialize, Serialize};
 
 
 use ed25519_consensus::{Signature, VerificationKey};
 use sha2::{Digest, Sha512};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use crate::{borsh::Borsh, Error};
 
@@ -27,7 +27,7 @@ pub struct FullMessage {
 pub struct Body {
     public_key: VerificationKey,
     nonce: u64,
-    keys_values: HashMap<u64, u64>
+    keys_values: BTreeMap<u64, u64>
 }
 
 pub async fn start_api_server(
@@ -74,34 +74,28 @@ async fn transaction(
 
     info!(target = "equity-core", "Transaction API");
 
-    let public_key:&[u8] = payload.body.public_key.as_bytes();
-
-    // First rule: Transction ID (Hash) is unique 
-
-    let mut tx_record: FullMessage;
-
     // Check database if Mapping [hash -> tx_record] exists
-    // If value exists 
-    // THEN previous_nonce == value
-    // ELSE previous_nonce == 0
+    // If value exists revert transaction
 
-    if let Ok(Some(value)) = state.get::<FullMessage>(&payload.hash.as_bytes()) {
+    if let Ok(Some(_value)) = state.get::<FullMessage>(&payload.hash.as_bytes()) {
         return Ok(Borsh(PostTransactionResponse { 
             success: false, 
-            msg: "TX already exists".to_string()  
+            msg: "Revert: TX already exists".to_string()  
         }))
     };
 
-    // IF tx_record does not exist in database
-    // THEN Verify signature
-    // ELSE Send Response with Success: False and previous nonce
+    // Verify signature
+    // If signature is not verified then revert transaction
 
-    if let Err(e) = verify_body(&payload) {
+    let payload_verify = payload.clone();
+    
+    if let Ok(Err(e)) = spawn_blocking(move || verify_body(payload_verify)).await
+    {
         return Ok(Borsh(PostTransactionResponse { 
-            success: false, 
-            msg: e.to_string()  
+                success: false, 
+                msg: e.to_string()  
         }))
-    };
+    }
 
     Ok(Borsh(PostTransactionResponse { 
         success: true, 
@@ -111,18 +105,17 @@ async fn transaction(
 }
 
 fn verify_body (
-    payload: &FullMessage
+    payload: FullMessage
 ) -> Result<(), ed25519_consensus::Error> {
     
-    let message_string = serde_json::to_string(&payload.body.clone()).unwrap();
-
     let mut digest: Sha512 = Sha512::new();
     
-    digest.update(message_string);
+    digest.update(serde_json::to_string(&payload.body).unwrap());
 
     let digest_string: String = format!("{:X}", digest.clone().finalize());
 
     payload.body.public_key.verify(&payload.signature, &digest_string.as_bytes())
+
 }
 
 // TODO should we use some binary instead of a path?

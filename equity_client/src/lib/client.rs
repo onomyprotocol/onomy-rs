@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use surf::Url;
 use tokio::time::sleep;
 use tracing::info;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use rand::{Rng, thread_rng};
 
 use ed25519_consensus::{Signature, SigningKey, VerificationKey};
@@ -43,7 +43,7 @@ pub struct FullMessage {
 pub struct Body {
     public_key: VerificationKey,
     nonce: u64,
-    keys_values: HashMap<u64, u64>
+    keys_values: BTreeMap<u64, u64>
 }
 
 pub async fn borsh_get<T: BorshDeserialize>(url: &Url) -> crate::Result<T> {
@@ -126,8 +126,9 @@ impl EquityClient {
 
     pub fn test_transaction(&self, key_domain: &u64, value_range: &u64, iterations: &u8) -> Body {
         let mut rng = rand::thread_rng();
-
-        let mut keys_values = HashMap::new();
+        
+        // BTreeMap needed as keys are sorted vs HashMap
+        let mut keys_values = BTreeMap::new();
         for _i in 0..*iterations {
             let o: u64 = rng.gen_range(0..*key_domain);
             let p: u64 = rng.gen_range(0..*value_range);
@@ -144,6 +145,8 @@ impl EquityClient {
     pub fn create_transaction(&self, message: &Body) -> FullMessage {
         
         let message_string = serde_json::to_string(message).unwrap();
+
+        // println!("{}", &message_string);
 
         let mut digest: Sha512 = Sha512::new();
         digest.update(message_string);
