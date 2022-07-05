@@ -41,7 +41,7 @@ impl EquityDatabase {
         }
     }
 
-    pub fn get<V: DeserializeOwned + Debug>(self, key: &[u8]) -> Result<Option<V>> {
+    pub fn get<V: DeserializeOwned + Debug>(&self, key: &[u8]) -> Result<Option<V>> {
         match self.data.get(key) {
             Ok(Some(bytes)) => {
                 let val: V = serde_json::from_slice(&bytes)?;
@@ -52,14 +52,14 @@ impl EquityDatabase {
         }
     }
 
-    pub fn set<K: Into<Vec<u8>>, V: Serialize + DeserializeOwned>(
+    pub fn set<K: Serialize, V: Serialize + DeserializeOwned>(
         &self,
         key: K,
         value: V,
     ) -> Result<Option<V>> {
         match self
             .data
-            .set(key.into(), serde_json::to_vec(&value)?)
+            .set(serde_json::to_vec(&key)?, serde_json::to_vec(&value)?)
         {
             Ok(Some(previous_value)) => {
                 let val: V = serde_json::from_slice(&previous_value)?;

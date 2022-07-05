@@ -58,6 +58,12 @@ pub async fn borsh_post<T: BorshDeserialize>(url: &Url, body: FullMessage) -> cr
         .map_err(|e| Error::BorshDeserializeError(e, response))
 }
 
+pub async fn serde_post<T: DeserializeOwned>(url: &Url, body: FullMessage) -> crate::Result<T> {
+    let response = surf::post(url).body_json(&body)?.recv_bytes().await?;
+    serde_json::from_slice(&response)
+        .map_err(|e| Error::SerdeDeserializeError(e, response))
+}
+
 /// Used for message debugging
 pub async fn ron_get<T: DeserializeOwned>(url: &Url) -> crate::Result<T> {
     let response = surf::get(url).recv_bytes().await?;
@@ -166,7 +172,7 @@ impl EquityClient {
     pub async fn post_transaction(&self, transaction: FullMessage) -> crate::Result<PostTransactionResponse> {
         let mut url = self.surf_url.clone();
         url.set_path(&self.url_transaction);
-        borsh_post(&url.join(&transaction.hash)?, transaction).await
+        serde_post(&url.join(&transaction.hash)?, transaction).await
     }
 }
 

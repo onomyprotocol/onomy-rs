@@ -8,6 +8,8 @@ pub enum Error {
     BorshDeserializeError(std::io::Error, Vec<u8>),
     #[error("RonDeserializeError")]
     RonDeserializeError(ron::Error, Vec<u8>),
+    #[error("SerdeDeserializeError")]
+    SerdeDeserializeError(serde_json::Error, Vec<u8>),
     #[error("UrlParseError")]
     UrlParseError(#[from] ParseError),
     #[error("SurfError")]

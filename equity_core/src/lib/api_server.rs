@@ -70,7 +70,7 @@ async fn health() -> Borsh<HealthResponse> {
 async fn transaction(
     Json(payload): Json<FullMessage>,
     Extension(state): Extension<EquityDatabase>,
-) -> Result<Borsh<PostTransactionResponse>, StatusCode> {
+) -> Result<Json<PostTransactionResponse>, StatusCode> {
 
     info!(target = "equity-core", "Transaction API");
 
@@ -78,7 +78,7 @@ async fn transaction(
     // If value exists revert transaction
 
     if let Ok(Some(_value)) = state.get::<FullMessage>(&payload.hash.as_bytes()) {
-        return Ok(Borsh(PostTransactionResponse { 
+        return Ok(Json(PostTransactionResponse { 
             success: false, 
             msg: "Revert: TX already exists".to_string()  
         }))
@@ -91,17 +91,27 @@ async fn transaction(
     
     if let Ok(Err(e)) = spawn_blocking(move || verify_body(payload_verify)).await
     {
-        return Ok(Borsh(PostTransactionResponse { 
+        return Ok(Json(PostTransactionResponse { 
                 success: false, 
                 msg: e.to_string()  
         }))
     }
 
-    Ok(Borsh(PostTransactionResponse { 
-        success: true, 
-        msg: "TX Validated".to_string()  
+    // Post transaction record to db
+    let payload_entry = payload.clone();
+    // let payload_hash = payload.hash;
+
+    if let Ok(None) = state.set(&payload.hash, payload_entry) {
+        return Ok(Json(PostTransactionResponse { 
+            success: true, 
+            msg: "Transaction entry recorded to db".to_string()  
+        }))
+    };
+
+    Ok(Json(PostTransactionResponse { 
+        success: false, 
+        msg: "Transaction not recorded to db".to_string()  
     }))
-    
 }
 
 fn verify_body (
