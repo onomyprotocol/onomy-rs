@@ -9,4 +9,5 @@ publish = false
 [dependencies]
 borsh = "0.9"
 derive-alias = "0.1.0"
+ed25519-consensus = "2"
 serde = { version = "1.0", features = ["derive"] }

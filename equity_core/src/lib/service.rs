@@ -4,14 +4,20 @@ use equity_storage::EquityDatabase;
 use tokio::task::JoinHandle;
 
 use futures::future::join_all;
+use ed25519_consensus::{SigningKey, VerificationKey};
+use rand::{Rng, thread_rng};
+
 
 use crate::{
     api_server::{start_api_server, EquityError},
     Error,
 };
+
 pub struct EquityService {
     pub address: std::net::SocketAddr,
     tasks: Vec<JoinHandle<Result<(), EquityError>>>,
+    private_key: SigningKey,
+    public_key: VerificationKey
 }
 
 impl EquityService {
@@ -20,7 +26,15 @@ impl EquityService {
 
         let tasks = vec![server_handle];
 
-        Ok(Self { address, tasks })
+        let sk = SigningKey::new(thread_rng());
+        let vk = VerificationKey::from(&sk);
+
+        Ok(Self { 
+            address: address, 
+            tasks: tasks,  
+            private_key: sk,
+            public_key: vk
+        })
     }
 
     pub async fn run(self) {

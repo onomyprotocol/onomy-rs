@@ -2,32 +2,22 @@ use std::net::{SocketAddr, TcpListener};
 
 use axum::{extract::Path, routing, Extension, Json, Router};
 use equity_storage::EquityDatabase;
-use equity_types::{EquityAddressResponse, HealthResponse, PostTransactionResponse};
+use equity_types::{EquityAddressResponse, Body, FullMessage, HealthResponse, PostTransactionResponse};
 use hyper::StatusCode;
 use tokio::task::{JoinHandle, spawn_blocking};
 use tracing::info;
 use serde::{Deserialize, Serialize};
 
 
-use ed25519_consensus::{Signature, VerificationKey};
+use ed25519_consensus::{VerificationKey};
 use sha2::{Digest, Sha512};
-use std::collections::BTreeMap;
 
 use crate::{borsh::Borsh, Error};
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
-pub struct FullMessage {
-    body: Body,
-    hash: String,
-    signature: Signature,
-}
-
-
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
-pub struct Body {
-    public_key: VerificationKey,
-    nonce: u64,
-    keys_values: BTreeMap<u64, u64>
+pub struct Peer {
+    address: SocketAddr,
+    public_key: VerificationKey
 }
 
 pub async fn start_api_server(

@@ -739,6 +739,7 @@ dependencies = [
  "futures",
  "hyper",
  "mime",
+ "rand 0.8.5",
  "ron",
  "serde",
  "serde_json",
@@ -768,6 +769,7 @@ version = "0.1.0"
 dependencies = [
  "borsh",
  "derive-alias",
+ "ed25519-consensus",
  "serde",
 ]
 
