@@ -7,9 +7,11 @@ use futures::future::join_all;
 use ed25519_consensus::{SigningKey, VerificationKey};
 use rand::{Rng, thread_rng};
 
+use equity_types::EquityError;
+
 
 use crate::{
-    api_server::{start_api_server, EquityError},
+    api_server::{start_api_server},
     Error,
 };
 

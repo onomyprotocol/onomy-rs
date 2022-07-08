@@ -58,3 +58,9 @@ pub struct Body {
     pub nonce: u64,
     pub keys_values: BTreeMap<u64, u64>
 }
+
+#[derive(Debug, thiserror::Error)]
+pub enum EquityError {
+    #[error("An api server error occurred {0}")]
+    ApiServer(#[from] hyper::Error),
+}

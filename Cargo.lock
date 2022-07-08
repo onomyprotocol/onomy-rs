@@ -770,7 +770,9 @@ dependencies = [
  "borsh",
  "derive-alias",
  "ed25519-consensus",
+ "hyper",
  "serde",
+ "thiserror",
 ]
 
 [[package]]

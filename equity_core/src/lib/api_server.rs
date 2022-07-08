@@ -2,7 +2,7 @@ use std::net::{SocketAddr, TcpListener};
 
 use axum::{extract::Path, routing, Extension, Json, Router};
 use equity_storage::EquityDatabase;
-use equity_types::{EquityAddressResponse, Body, FullMessage, HealthResponse, PostTransactionResponse};
+use equity_types::{EquityAddressResponse, EquityError, FullMessage, HealthResponse, PostTransactionResponse};
 use hyper::StatusCode;
 use tokio::task::{JoinHandle, spawn_blocking};
 use tracing::info;
@@ -168,10 +168,4 @@ async fn set_address(
             Err(StatusCode::NOT_FOUND)
         }
     }
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum EquityError {
-    #[error("An api server error occurred {0}")]
-    ApiServer(#[from] hyper::Error),
 }
