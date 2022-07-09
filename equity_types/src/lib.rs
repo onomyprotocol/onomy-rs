@@ -2,6 +2,8 @@ pub use borsh;
 use borsh::{BorshDeserialize, BorshSerialize};
 use derive_alias::derive_alias;
 use serde::{Deserialize, Serialize};
+use ed25519_consensus::{Signature, VerificationKey};
+use std::collections::BTreeMap;
 
 // TODO common derive macro
 
@@ -30,7 +32,35 @@ pub struct EquityAddressResponse {
 }
 
 derive_common! {
+pub struct PostTransactionResponse {
+    pub success: bool,
+    pub msg: String,
+}
+}
+
+derive_common! {
 pub struct HealthResponse {
     pub up: bool,
 }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+pub struct FullMessage {
+    pub body: Body,
+    pub hash: String,
+    pub signature: Signature,
+}
+
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+pub struct Body {
+    pub public_key: VerificationKey,
+    pub nonce: u64,
+    pub keys_values: BTreeMap<u64, u64>
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum EquityError {
+    #[error("An api server error occurred {0}")]
+    ApiServer(#[from] hyper::Error),
 }

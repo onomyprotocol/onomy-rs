@@ -1,9 +1,7 @@
 mod in_memory;
 use std::{fmt::Debug, sync::Arc};
 
-use serde::{Serialize};
-use serde::de::DeserializeOwned;
-use serde_json::*;
+use borsh::{BorshDeserialize, BorshSerialize};
 
 pub enum DatabaseType {
     InMemory,
@@ -27,7 +25,7 @@ pub enum Error {
     DatabaseError(Box<dyn std::error::Error + Send + Sync>),
 }
 
-pub type DatabaseResult<T> = Result<T>;
+pub type DatabaseResult<T> = Result<T, Error>;
 
 #[derive(Clone, Debug)]
 pub struct EquityDatabase {
@@ -41,10 +39,10 @@ impl EquityDatabase {
         }
     }
 
-    pub fn get<V: DeserializeOwned + Debug>(&self, key: &[u8]) -> Result<Option<V>> {
+    pub fn get<V: BorshDeserialize + Debug>(&self, key: &[u8]) -> Result<Option<V>, Error> {
         match self.data.get(key) {
             Ok(Some(bytes)) => {
-                let val: V = serde_json::from_slice(&bytes)?;
+                let val: V = BorshDeserialize::try_from_slice(&bytes).map_err(|_| Error::Codec)?;
                 Ok(Some(val))
             }
             Ok(None) => Ok(None),
@@ -52,21 +50,20 @@ impl EquityDatabase {
         }
     }
 
-    pub fn set<K: Serialize, V: Serialize + DeserializeOwned>(
+    pub fn set<K: Into<Vec<u8>>, V: BorshSerialize + BorshDeserialize>(
         &self,
         key: K,
         value: V,
-    ) -> Result<Option<V>> {
+    ) -> Result<Option<V>, Error> {
         match self
             .data
-            .set(serde_json::to_vec(&key)?, serde_json::to_vec(&value)?)
+            .set(key.into(), borsh::to_vec(&value).map_err(|_| Error::Codec)?)?
         {
-            Ok(Some(previous_value)) => {
-                let val: V = serde_json::from_slice(&previous_value)?;
-                Ok(Some(val))
-            }
-            Ok(None) => Ok(None),
-            Err(e) => Err(e),
+            Some(previous_value) => match BorshDeserialize::try_from_slice(&previous_value) {
+                Ok(o) => Ok(Some(o)),
+                Err(_) => Err(Error::Codec),
+            },
+            _ => Ok(None),
         }
     }
 }
