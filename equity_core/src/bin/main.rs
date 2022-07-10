@@ -9,14 +9,17 @@ use tracing::info;
 #[derive(Parser)]
 #[clap(name = "equity_core", about = "Equity", version)]
 struct CliArgs {
-    #[clap(name = "listener", default_value = "127.0.0.1:4040", long = "listener")]
-    listener: String,
+    #[clap(name = "api_listener", default_value = "127.0.0.1:4040")]
+    api_listener: String,
+    #[clap(name = "p2p_listener", default_value = "127.0.0.1:5050")]
+    p2p_listener: String,
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
     let args = CliArgs::parse();
-    let listener = SocketAddr::from_str(&args.listener)?;
+    let api_listener = SocketAddr::from_str(&args.api_listener)?;
+    let p2p_listener = SocketAddr::from_str(&args.p2p_listener)?;
     initialize_logger();
     info!(target: "equity-core", "Initializing equity-core");
 
@@ -24,7 +27,7 @@ async fn main() -> Result<(), Error> {
     let db = EquityDatabase::in_memory();
     genesis_data(&db);
 
-    let service = EquityService::new(listener, db).await?;
+    let service = EquityService::new(api_listener, p2p_listener, db).await?;
 
     service.run().await;
 
