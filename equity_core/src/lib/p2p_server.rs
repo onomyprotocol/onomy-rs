@@ -12,12 +12,18 @@ use serde::{Deserialize, Serialize};
 
 use sha2::{Digest, Sha512};
 
-use ed25519_consensus::{Signature, VerificationKey};
+use ed25519_consensus::{Signature, SigningKey, VerificationKey};
 
 pub use tokio_tungstenite::tungstenite::protocol::Message;
 use futures_util::stream::{SplitSink, SplitStream};
 
 use crate::{Error};
+
+pub struct Server {
+    public_key: VerificationKey,
+    private_key: SigningKey,
+    p2p_listener: SocketAddr
+}
 
 pub async fn start_p2p_server(
     p2p_listener: SocketAddr,
@@ -25,11 +31,14 @@ pub async fn start_p2p_server(
     db: EquityDatabase,
     peers: PeerMap
 ) -> Result<(SocketAddr, JoinHandle<Result<(), EquityError>>), Error> {
+
+    let sk = SigningKey::new(thread_rng());
+    let vk = VerificationKey::from(&sk);
     
     // If seed address given then network is already initialize
     // IF seed address is not given then server will not connect to other servers
     if seed_address.to_string() != "0.0.0.0".to_string() {
-        initialize_network(seed_address, peers.clone());
+        initialize_network(&seed_address, peers.clone());
     }
     
     let try_socket = TcpListener::bind(&p2p_listener).await;
@@ -64,7 +73,7 @@ async fn initialize_network(seed_address: &SocketAddr, peers: PeerMap) {
     let (ws_stream, _) = connect_async(seed_address.to_string()).await.expect("Failed to connect");
     println!("WebSocket handshake has been successfully completed");
 
-    ws_stream.send(Initialize_Struct);
+    ws_stream.send(InitMessage);
 
     let msg = ws_stream.next().await;
 

@@ -6,7 +6,7 @@ use equity_storage::EquityDatabase;
 use tokio::task::JoinHandle;
 
 use futures::future::join_all;
-use ed25519_consensus::{SigningKey, VerificationKey};
+
 use rand::{thread_rng};
 
 use equity_types::{EquityError, PeerMap};
@@ -33,9 +33,6 @@ impl EquityService {
         let (p2p_address, p2p_server_handle) = start_p2p_server(p2p_listener, seed_address, db.clone(), peers.clone()).await?;
 
         let tasks = vec![api_server_handle, p2p_server_handle];
-
-        let sk = SigningKey::new(thread_rng());
-        let vk = VerificationKey::from(&sk);
 
         Ok(Self { 
             api_address: api_address,
