@@ -1,11 +1,12 @@
 use std::net::SocketAddr;
+use std::
 use tokio::{
     net::{TcpListener, TcpStream},
     mpsc::unbounded_channel};
 use tokio_tungstenite::{connect_async};
 use futures::{SinkExt, StreamExt};
 use equity_storage::EquityDatabase;
-use equity_types::{EquityError, PeerMap, Peer};
+use equity_types::{Credentials, EquityError, PeerMap, Peer};
 use tokio::task::{JoinHandle};
 use tracing::info;
 use serde::{Deserialize, Serialize};
@@ -13,28 +14,22 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha512};
 
 use ed25519_consensus::{Signature, SigningKey, VerificationKey};
+use rand::{Rng, thread_rng};
 
 pub use tokio_tungstenite::tungstenite::protocol::Message;
 use futures_util::stream::{SplitSink, SplitStream};
 
 use crate::{Error};
 
-pub struct Server {
-    public_key: VerificationKey,
-    private_key: SigningKey,
-    p2p_listener: SocketAddr
-}
-
 pub async fn start_p2p_server(
     p2p_listener: SocketAddr,
     seed_address: SocketAddr,
     db: EquityDatabase,
-    peers: PeerMap
+    peers: PeerMap,
+    credentials: Credentials
 ) -> Result<(SocketAddr, JoinHandle<Result<(), EquityError>>), Error> {
 
-    let sk = SigningKey::new(thread_rng());
-    let vk = VerificationKey::from(&sk);
-    
+
     // If seed address given then network is already initialize
     // IF seed address is not given then server will not connect to other servers
     if seed_address.to_string() != "0.0.0.0".to_string() {

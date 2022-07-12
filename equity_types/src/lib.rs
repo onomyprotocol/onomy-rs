@@ -2,7 +2,7 @@ pub use borsh;
 use borsh::{BorshDeserialize, BorshSerialize};
 use derive_alias::derive_alias;
 use serde::{Deserialize, Serialize};
-use ed25519_consensus::{Signature, VerificationKey};
+use ed25519_consensus::{Signature, SigningKey, VerificationKey};
 use std::collections::BTreeMap;
 
 use tokio::sync::mpsc::{Sender};
@@ -11,6 +11,8 @@ use tungstenite::Message;
 use std::net::SocketAddr;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+
+use rand::{Rng, thread_rng};
 
 // TODO common derive macro
 
@@ -79,3 +81,21 @@ pub struct Peer {
 }
 
 pub type PeerMap = Arc<Mutex<HashMap<SocketAddr, Peer>>>;
+
+pub struct Credentials {
+    private_key: SigningKey,
+    public_key: VerificationKey
+}
+
+impl Credentials {
+    pub fn new() -> Credentials {
+        
+        let sk = SigningKey::new(thread_rng());
+        let vk = VerificationKey::from(&sk);
+
+        Self {
+            private_key: sk,
+            public_key: vk
+        }
+    }
+}
