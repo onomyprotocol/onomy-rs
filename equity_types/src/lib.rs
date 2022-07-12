@@ -4,8 +4,10 @@ use derive_alias::derive_alias;
 use serde::{Deserialize, Serialize};
 use ed25519_consensus::{Signature, SigningKey, VerificationKey};
 use std::collections::BTreeMap;
+use futures::future::IntoFuture;
 
 use tokio::sync::mpsc::{Sender};
+use tokio::task::{JoinHandle, spawn_blocking};
 
 use tungstenite::Message;
 use std::net::SocketAddr;
@@ -13,6 +15,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use rand::{Rng, thread_rng};
+use sha2::{Digest, Sha512};
 
 // TODO common derive macro
 
@@ -53,7 +56,7 @@ pub struct HealthResponse {
 }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, IntoFuture, PartialEq, Eq, Deserialize, Serialize)]
 pub struct FullMessage {
     pub body: Body,
     pub hash: String,
@@ -97,5 +100,23 @@ impl Credentials {
             private_key: sk,
             public_key: vk
         }
+    }
+
+    pub async fn hash_sign(&self, message: &String) -> Result<(String, Signature), tokio::task::JoinError> {
+        
+        let private_key = self.private_key.clone();
+        let message = message.clone();
+
+        // Hash + Signature operation may be considered blocking
+        spawn_blocking(move || {
+            let mut digest: Sha512 = Sha512::new();
+            digest.update(message);
+
+            let digest_string: String = format!("{:X}", digest.clone().finalize());
+        
+            let signature: Signature = private_key.sign(&digest_string.as_bytes());
+
+            return (digest_string, signature);
+        }).await
     }
 }

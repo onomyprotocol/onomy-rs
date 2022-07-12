@@ -28,10 +28,10 @@ pub struct EquityService {
 impl EquityService {
     pub async fn new(api_listener: SocketAddr, p2p_listener: SocketAddr, seed_address: SocketAddr, db: EquityDatabase) -> Result<Self, Error> {
         let peers = PeerMap::new(Mutex::new(HashMap::new()));
-        let credentials = Credentials::new();
+        let credentials = Arc::new(Credentials::new());
 
-        let (api_address, api_server_handle) = start_api_server(api_listener, db.clone(), peers.clone()).await?;
-        let (p2p_address, p2p_server_handle) = start_p2p_server(p2p_listener, seed_address, db.clone(), peers.clone()).await?;
+        let (api_address, api_server_handle) = start_api_server(api_listener, db.clone(), peers.clone(), credentials.clone()).await?;
+        let (p2p_address, p2p_server_handle) = start_p2p_server(p2p_listener, seed_address, db.clone(), peers.clone(), credentials.clone()).await?;
 
         let tasks = vec![api_server_handle, p2p_server_handle];
 

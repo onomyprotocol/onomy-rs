@@ -5,7 +5,7 @@ use std::{
 };
 
 use borsh::BorshDeserialize;
-use equity_types::{EquityAddressResponse, HealthResponse, PostTransactionResponse, FullMessage, Body};
+use equity_types::{Credentials, EquityAddressResponse, HealthResponse, PostTransactionResponse, FullMessage, Body};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use surf::Url;
@@ -25,8 +25,7 @@ pub struct EquityClient {
     url_health: String,
     url_transaction: String,
     url_address: String,
-    private_key: SigningKey,
-    public_key: VerificationKey,
+    credentials: Credentials,
     nonce: u64
 }
 
@@ -63,16 +62,14 @@ pub async fn ron_post<T: DeserializeOwned>(url: &Url, body: String) -> crate::Re
 impl EquityClient {
     pub fn new(url: &str) -> Result<Self, Error> {
         let s_url = Url::from_str(url)?;
-        let sk = SigningKey::new(thread_rng());
-        let vk = VerificationKey::from(&sk);
+        let credentials = Credentials::new();
 
         let res = Self {
             surf_url: s_url,
             url_health: "health".to_owned(),
             url_transaction: "transaction/".to_owned(),
             url_address: "address/".to_owned(),
-            private_key: sk,
-            public_key: vk,
+            credentials: credentials,
             nonce: 1
         };
         info!(target = "equity-client", "URL is: {:?}", res.surf_url);
@@ -133,18 +130,11 @@ impl EquityClient {
         }
     }
 
-    pub fn create_transaction(&self, message: &Body) -> FullMessage {
+    pub async fn create_transaction(&self, message: &Body) -> FullMessage {
         
         let message_string = serde_json::to_string(message).unwrap();
 
-        // println!("{}", &message_string);
-
-        let mut digest: Sha512 = Sha512::new();
-        digest.update(message_string);
-
-        let digest_string: String = format!("{:X}", digest.clone().finalize());
-    
-        let signature: Signature = self.private_key.sign(&digest_string.as_bytes());
+        let (digest_string, signature) = self.credentials.hash_sign(&message_string).await.unwrap();
 
         FullMessage {
             body: message.clone(),
