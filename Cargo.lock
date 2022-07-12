@@ -737,6 +737,8 @@ dependencies = [
  "equity_storage",
  "equity_types",
  "futures",
+ "futures-channel",
+ "futures-util",
  "hyper",
  "mime",
  "rand 0.8.5",
@@ -774,6 +776,8 @@ dependencies = [
  "hyper",
  "serde",
  "thiserror",
+ "tokio",
+ "tungstenite",
 ]
 
 [[package]]

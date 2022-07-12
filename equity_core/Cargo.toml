@@ -22,6 +22,8 @@ borsh = "0.9"
 clap = { version = "3.2", features = ["derive"] }
 ed25519-consensus = "2"
 futures = "0.3"
+futures-util = "0.3"
+futures-channel = "0.3"
 hyper = "0.14"
 mime = "0.3"
 rand = "0.8"

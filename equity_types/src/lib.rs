@@ -5,6 +5,13 @@ use serde::{Deserialize, Serialize};
 use ed25519_consensus::{Signature, VerificationKey};
 use std::collections::BTreeMap;
 
+use tokio::sync::mpsc::{Sender};
+
+use tungstenite::Message;
+use std::net::SocketAddr;
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
+
 // TODO common derive macro
 
 derive_alias! {
@@ -64,3 +71,11 @@ pub enum EquityError {
     #[error("An api server error occurred {0}")]
     ApiServer(#[from] hyper::Error),
 }
+
+#[derive(Debug)]
+pub struct Peer {
+    pub send: Sender<Message>,
+    pub public_key: VerificationKey,
+}
+
+pub type PeerMap = Arc<Mutex<HashMap<SocketAddr, Peer>>>;

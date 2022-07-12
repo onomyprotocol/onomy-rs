@@ -1,4 +1,6 @@
 use std::net::SocketAddr;
+use std::sync::{Arc, Mutex};
+use std::collections::
 
 use equity_storage::EquityDatabase;
 use tokio::task::JoinHandle;
@@ -7,8 +9,7 @@ use futures::future::join_all;
 use ed25519_consensus::{SigningKey, VerificationKey};
 use rand::{thread_rng};
 
-use equity_types::EquityError;
-
+use equity_types::{EquityError, PeerMap};
 
 use crate::{
     api_server::{start_api_server},
@@ -25,9 +26,11 @@ pub struct EquityService {
 }
 
 impl EquityService {
-    pub async fn new(api_listener: SocketAddr, p2p_listener: SocketAddr, db: EquityDatabase) -> Result<Self, Error> {
-        let (api_address, api_server_handle) = start_api_server(api_listener, db.clone()).await?;
-        let (p2p_address, p2p_server_handle) = start_p2p_server(p2p_listener, db).await?;
+    pub async fn new(api_listener: SocketAddr, p2p_listener: SocketAddr, seed_address: SocketAddr, db: EquityDatabase) -> Result<Self, Error> {
+        let peers = PeerMap::new(Mutex::new(HashMap::new()));
+
+        let (api_address, api_server_handle) = start_api_server(api_listener, db.clone(), peers.clone()).await?;
+        let (p2p_address, p2p_server_handle) = start_p2p_server(p2p_listener, seed_address, db.clone(), peers.clone()).await?;
 
         let tasks = vec![api_server_handle, p2p_server_handle];
 

@@ -5,7 +5,7 @@ use std::{
 };
 
 use borsh::BorshDeserialize;
-use equity_types::{EquityAddressResponse, HealthResponse, PostTransactionResponse};
+use equity_types::{EquityAddressResponse, HealthResponse, PostTransactionResponse, FullMessage, Body};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use surf::Url;
@@ -30,21 +30,6 @@ pub struct EquityClient {
     nonce: u64
 }
 
-
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
-pub struct FullMessage {
-    body: Body,
-    hash: String,
-    signature: Signature,
-}
-
-
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
-pub struct Body {
-    public_key: VerificationKey,
-    nonce: u64,
-    keys_values: BTreeMap<u64, u64>
-}
 
 pub async fn borsh_get<T: BorshDeserialize>(url: &Url) -> crate::Result<T> {
     let response = surf::get(url).recv_bytes().await?;
