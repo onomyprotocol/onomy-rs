@@ -7,15 +7,12 @@ use std::{
 use borsh::BorshDeserialize;
 use equity_types::{Credentials, EquityAddressResponse, HealthResponse, PostTransactionResponse, FullMessage, Body};
 use serde::de::DeserializeOwned;
-use serde::{Deserialize, Serialize};
 use surf::Url;
 use tokio::time::sleep;
 use tracing::info;
 use std::collections::BTreeMap;
-use rand::{Rng, thread_rng};
+use rand::Rng;
 
-use ed25519_consensus::{Signature, SigningKey, VerificationKey};
-use sha2::{Digest, Sha512};
 
 use crate::Error;
 
@@ -124,17 +121,17 @@ impl EquityClient {
         }
 
         Body {
-            public_key: self.public_key,
+            public_key: self.credentials.public_key,
             nonce: self.nonce,
             keys_values: keys_values
         }
     }
 
-    pub async fn create_transaction(&self, message: &Body) -> FullMessage {
+    pub fn create_transaction(&self, message: &Body) -> FullMessage {
         
         let message_string = serde_json::to_string(message).unwrap();
 
-        let (digest_string, signature) = self.credentials.hash_sign(&message_string).await.unwrap();
+        let (digest_string, signature) = self.credentials.hash_sign(&message_string);
 
         FullMessage {
             body: message.clone(),

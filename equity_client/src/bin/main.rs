@@ -44,7 +44,7 @@ pub async fn main() {
             println!("Iterations: {:?}", iterations);
             client.noncer();
             let tester = client.test_transaction(&key_domain, &value_range, &iterations);
-            let transaction = client.create_transaction(&tester).await;
+            let transaction = client.create_transaction(&tester);
             let response = client.post_transaction(transaction).await.unwrap();
             info!("Transaction Response is: {:?}", response);
         }
