@@ -1,8 +1,8 @@
 use std::net::SocketAddr;
-use std::
+
 use tokio::{
     net::{TcpListener, TcpStream},
-    mpsc::unbounded_channel};
+    sync::mpsc::unbounded_channel};
 use tokio_tungstenite::{connect_async};
 use futures::{SinkExt, StreamExt};
 use equity_storage::EquityDatabase;
@@ -11,13 +11,10 @@ use tokio::task::{JoinHandle};
 use tracing::info;
 use serde::{Deserialize, Serialize};
 
-use sha2::{Digest, Sha512};
+use ed25519_consensus::{Signature, VerificationKey};
 
-use ed25519_consensus::{Signature, SigningKey, VerificationKey};
-use rand::{Rng, thread_rng};
 
 pub use tokio_tungstenite::tungstenite::protocol::Message;
-use futures_util::stream::{SplitSink, SplitStream};
 
 use crate::{Error};
 
@@ -68,7 +65,7 @@ async fn initialize_network(seed_address: &SocketAddr, peers: PeerMap) {
     let (ws_stream, _) = connect_async(seed_address.to_string()).await.expect("Failed to connect");
     println!("WebSocket handshake has been successfully completed");
 
-    ws_stream.send(InitMessage);
+    // ws_stream.send();
 
     let msg = ws_stream.next().await;
 
