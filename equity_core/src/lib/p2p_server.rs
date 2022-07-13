@@ -1,10 +1,10 @@
 use std::net::SocketAddr;
-
+use tokio_stream::wrappers::UnboundedReceiverStream;
 use tokio::{
     net::{TcpListener, TcpStream},
     sync::mpsc::unbounded_channel};
 use tokio_tungstenite::{connect_async};
-use futures::{SinkExt, StreamExt};
+use futures::StreamExt;
 use equity_storage::EquityDatabase;
 use equity_types::{Credentials, EquityError, PeerMap, Peer};
 use tokio::task::{JoinHandle};
@@ -62,26 +62,22 @@ async fn handle_connection(raw_stream: TcpStream, addr: SocketAddr) {
 }
 
 async fn initialize_network(seed_address: &SocketAddr, peers: PeerMap) {
-    let (ws_stream, _) = connect_async(seed_address.to_string()).await.expect("Failed to connect");
+    let (mut ws_stream, _) = connect_async(seed_address.to_string()).await.expect("Failed to connect");
     println!("WebSocket handshake has been successfully completed");
 
     // ws_stream.send();
 
     let msg = ws_stream.next().await;
 
-    let (read, write) = ws_stream.split();
+    let (write, read) = ws_stream.split();
 
     // Insert the write part of this peer to the peer map.
     let (tx, rx) = unbounded_channel();
+    let rx = UnboundedReceiverStream::new(rx);
 
     tokio::spawn(
-        rx.forward(write).map(|result| {
-            if let Err(e) = result {
-            eprintln!("error sending websocket msg: {}", e);
-            }
-        })
+        rx.map(Ok).forward(write)
     );
-    
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
@@ -97,8 +93,11 @@ pub struct InitMessage {
     pub signature: Signature,
 }
 
-pub fn initial_message(message: &Initiate) -> InitMessage {
-        
+pub fn initial_message(credentials: Credentials, message: &Initiate) -> InitMessage {
+
+    let message_string = serde_json::to_string(message).unwrap();
+
+    let (digest_string, signature) = credentials.hash_sign(&message_string);
     
 
     InitMessage {
