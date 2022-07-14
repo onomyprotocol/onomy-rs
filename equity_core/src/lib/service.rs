@@ -33,9 +33,9 @@ impl EquityService {
         let tasks = vec![api_server_handle, p2p_server_handle];
 
         Ok(Self { 
-            api_address: api_address,
-            p2p_address: p2p_address,
-            tasks: tasks
+            api_address,
+            p2p_address,
+            tasks
         })
     }
 

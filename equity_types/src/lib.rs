@@ -6,7 +6,7 @@ use ed25519_consensus::{Signature, SigningKey, VerificationKey};
 use std::collections::BTreeMap;
 
 
-use tokio::sync::mpsc::{Sender};
+use tokio::sync::mpsc::Sender;
 
 use tungstenite::Message;
 use std::net::SocketAddr;
@@ -87,7 +87,8 @@ pub type PeerMap = Arc<Mutex<HashMap<SocketAddr, Peer>>>;
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Credentials {
     pub private_key: SigningKey,
-    pub public_key: VerificationKey
+    pub public_key: VerificationKey,
+    pub nonce: u64
 }
 
 impl Credentials {
@@ -98,7 +99,8 @@ impl Credentials {
 
         Self {
             private_key: sk,
-            public_key: vk
+            public_key: vk,
+            nonce: 1
         }
     }
 
