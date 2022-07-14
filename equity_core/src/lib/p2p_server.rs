@@ -1,4 +1,5 @@
 use std::net::SocketAddr;
+use std::sync::Arc;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use tokio::{
     net::{TcpListener, TcpStream},
@@ -16,18 +17,17 @@ use ed25519_consensus::{Signature, VerificationKey};
 
 pub use tokio_tungstenite::tungstenite::protocol::Message;
 
-use crate::{Error};
+use crate::Error;
 
 pub async fn start_p2p_server(
     p2p_listener: SocketAddr,
     seed_address: SocketAddr,
     db: EquityDatabase,
     peers: PeerMap,
-    credentials: Credentials
+    credentials: Arc<Credentials>
 ) -> Result<(SocketAddr, JoinHandle<Result<(), EquityError>>), Error> {
 
 
-    // If seed address given then network is already initialize
     // IF seed address is not given then server will not connect to other servers
     if seed_address.to_string() != "0.0.0.0".to_string() {
         initialize_network(&seed_address, peers.clone());

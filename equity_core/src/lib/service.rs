@@ -1,13 +1,12 @@
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
-use std::collections::
+use std::collections::HashMap;
+
 
 use equity_storage::EquityDatabase;
 use tokio::task::JoinHandle;
 
 use futures::future::join_all;
-
-use rand::{thread_rng};
 
 use equity_types::{EquityError, PeerMap, Credentials};
 
@@ -20,9 +19,7 @@ use crate::{
 pub struct EquityService {
     pub api_address: std::net::SocketAddr,
     pub p2p_address: std::net::SocketAddr,
-    tasks: Vec<JoinHandle<Result<(), EquityError>>>,
-    private_key: SigningKey,
-    public_key: VerificationKey
+    tasks: Vec<JoinHandle<Result<(), EquityError>>>
 }
 
 impl EquityService {
@@ -38,9 +35,7 @@ impl EquityService {
         Ok(Self { 
             api_address: api_address,
             p2p_address: p2p_address,
-            tasks: tasks,  
-            private_key: sk,
-            public_key: vk
+            tasks: tasks
         })
     }
 

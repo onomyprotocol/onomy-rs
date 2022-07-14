@@ -1,4 +1,5 @@
 use std::net::{SocketAddr, TcpListener};
+use std::sync::Arc;
 
 use axum::{extract::Path, routing, Extension, Json, Router};
 use equity_storage::EquityDatabase;
@@ -24,7 +25,7 @@ pub async fn start_api_server(
     listener: SocketAddr,
     db: EquityDatabase,
     peers: PeerMap,
-    credentials: Credentials
+    credentials: Arc<Credentials>
 ) -> Result<(SocketAddr, JoinHandle<Result<(), EquityError>>), Error> {
     let router = Router::new()
         .route("/health", routing::get(health))
