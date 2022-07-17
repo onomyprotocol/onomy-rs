@@ -13,7 +13,7 @@ struct CliArgs {
     api_listener: String,
     #[clap(name = "p2p_listener", default_value = "127.0.0.1:5050")]
     p2p_listener: String,
-    #[clap(name = "seed", default_value = "127.0.0.1:5050")]
+    #[clap(name = "seed", default_value = "0.0.0.0:0000")]
     seed: String,
 }
 

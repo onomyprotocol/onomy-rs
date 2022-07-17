@@ -1,5 +1,6 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
+use std::collections::HashMap;
 use tokio_stream::wrappers::ReceiverStream;
 use tokio::{
     net::{TcpListener, TcpStream},
@@ -31,8 +32,9 @@ pub async fn start_p2p_server(
 
 
     // IF seed address is not given then server will not connect to other servers
-    if seed_address.to_string() != "0.0.0.0".to_string() {
-        initialize_network(&seed_address, peers.clone(), &credentials);
+    println!("{}", seed_address.to_string());
+    if seed_address.to_string() != "0.0.0.0:0".to_string() {
+        initialize_network(&seed_address, peers.clone(), &credentials).await;
     }
     
     let try_socket = TcpListener::bind(&p2p_listener).await;
@@ -44,7 +46,7 @@ pub async fn start_p2p_server(
     let handle = tokio::spawn(async move {
         // Let's spawn the handling of each connection in a separate task.
         while let Ok((stream, addr)) = listener.accept().await {
-            tokio::spawn(handle_connection(stream, addr));
+            tokio::spawn(handle_connection(stream, addr, peers.clone()));
         }
         Ok(())
     });
@@ -54,40 +56,58 @@ pub async fn start_p2p_server(
     Ok((bound_addr, handle))
 }
 
-async fn handle_connection(raw_stream: TcpStream, addr: SocketAddr) {
+async fn handle_connection(raw_stream: TcpStream, addr: SocketAddr, peers: PeerMap) {
     println!("Incoming TCP connection from: {}", addr);
 
-    let mut ws_stream = tokio_tungstenite::accept_async(raw_stream)
+    let ws_stream = tokio_tungstenite::accept_async(raw_stream)
         .await
         .expect("Error during the websocket handshake occurred");
     println!("WebSocket connection established: {}", addr);
 
-    if let Some(initial_msg) = ws_stream.next().await {
-        let initial_msg = initial_msg.unwrap();
-        let init_message: InitMessage = serde_json::from_str(&initial_msg.into_text().unwrap()).unwrap();
-
-        // Peerlist
-        //ws_stream.send().await.unwrap();
-
-    }
-
-
-    let (write, read) = ws_stream.split();
+    let (write, mut read) = ws_stream.split();
 
     // Insert the write part of this peer to the peer map.
     let (tx, rx) = channel(1000);
     let rx = ReceiverStream::new(rx);
 
+    
+    if let Some(initial_msg) = read.next().await {
+        let initial_msg = initial_msg.unwrap();
+        
+        let init_message: InitMessage = serde_json::from_str(&initial_msg.into_text().unwrap()).unwrap();
+
+        let mut peer_list: HashMap<SocketAddr, VerificationKey> = HashMap::new();
+        
+        let mut peers = peers.lock().unwrap();
+
+        let peers_iter = peers.iter();
+
+        // Iterate over everything.
+        for (adr, peer) in peers_iter {
+            peer_list.insert(adr.clone(), peer.public_key);
+        }
+
+        let peer_struct = Peer {
+            send: tx,
+            public_key: init_message.initiate.public_key
+        };
+
+        peers.insert(addr, peer_struct);
+    }
+
     tokio::spawn(
         rx.map(Ok).forward(write)
     );
 
-
+    while let Some(msg) = read.next().await {
+        println!("Received msg");
+    }
 
 }
 
 async fn initialize_network(seed_address: &SocketAddr, peers: PeerMap, credentials: &Credentials) {
     let (mut ws_stream, _) = connect_async(seed_address.to_string()).await.expect("Failed to connect");
+    
     println!("WebSocket handshake has been successfully completed");
 
     ws_stream.send(initial_message(credentials)).await.unwrap();
@@ -118,6 +138,12 @@ pub struct InitMessage {
     pub initiate: Initiate,
     pub hash: String,
     pub signature: Signature,
+}
+
+pub struct InitResponse {
+    pub peers: HashMap<SocketAddr, VerificationKey>,
+    pub hash: String,
+    pub signature: Signature
 }
 
 pub fn initial_message(credentials: &Credentials) -> Message {
