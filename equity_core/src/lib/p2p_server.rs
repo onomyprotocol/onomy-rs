@@ -18,8 +18,6 @@ use serde::{Deserialize, Serialize};
 
 use ed25519_consensus::{Signature, VerificationKey};
 
-
-
 use crate::Error;
 
 pub async fn start_p2p_server(
@@ -70,6 +68,9 @@ async fn handle_connection(raw_stream: TcpStream, addr: SocketAddr, peers: PeerM
     let (tx, rx) = channel(1000);
     let rx = ReceiverStream::new(rx);
 
+    tokio::spawn(
+        rx.map(Ok).forward(write)
+    );
     
     if let Some(initial_msg) = read.next().await {
         let initial_msg = initial_msg.unwrap();
@@ -87,22 +88,25 @@ async fn handle_connection(raw_stream: TcpStream, addr: SocketAddr, peers: PeerM
             peer_list.insert(adr.clone(), peer.public_key);
         }
 
+        let peer_lists = PeerList{
+            peer_list
+        };
+
         let peer_struct = Peer {
-            send: tx,
+            send: tx.clone(),
             public_key: init_message.initiate.public_key
         };
 
         peers.insert(addr, peer_struct);
-    }
 
-    tokio::spawn(
-        rx.map(Ok).forward(write)
-    );
+        
+
+        tx.try_send(Message::binary(serde_json::to_vec(&peer_lists).unwrap())).unwrap();
+    }
 
     while let Some(msg) = read.next().await {
-        println!("Received msg");
+        println!("Received msg: {:?}", msg);
     }
-
 }
 
 async fn initialize_network(seed_address: &SocketAddr, peers: PeerMap, credentials: &Credentials) {
@@ -123,7 +127,6 @@ async fn initialize_network(seed_address: &SocketAddr, peers: PeerMap, credentia
     tokio::spawn(
         rx.map(Ok).forward(write)
     );
-
     
 }
 
@@ -144,6 +147,11 @@ pub struct InitResponse {
     pub peers: HashMap<SocketAddr, VerificationKey>,
     pub hash: String,
     pub signature: Signature
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+pub struct PeerList {
+    pub peer_list: HashMap<SocketAddr, VerificationKey>
 }
 
 pub fn initial_message(credentials: &Credentials) -> Message {
