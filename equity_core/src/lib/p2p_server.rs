@@ -44,7 +44,7 @@ pub async fn start_p2p_server(
     let handle = tokio::spawn(async move {
         // Let's spawn the handling of each connection in a separate task.
         while let Ok((stream, addr)) = listener.accept().await {
-            tokio::spawn(handle_connection(stream, addr, peers.clone()));
+            tokio::spawn(handle_connection(stream, addr, peers.clone(), credentials.clone()));
         }
         Ok(())
     });
@@ -54,7 +54,7 @@ pub async fn start_p2p_server(
     Ok((bound_addr, handle))
 }
 
-async fn handle_connection(raw_stream: TcpStream, addr: SocketAddr, peers: PeerMap) {
+async fn handle_connection(raw_stream: TcpStream, addr: SocketAddr, peers: PeerMap, credentials: Arc<Credentials>) {
     println!("Incoming TCP connection from: {}", addr);
 
     let ws_stream = tokio_tungstenite::accept_async(raw_stream)
@@ -77,7 +77,7 @@ async fn handle_connection(raw_stream: TcpStream, addr: SocketAddr, peers: PeerM
         
         let init_message: InitMessage = serde_json::from_str(&initial_msg.into_text().unwrap()).unwrap();
 
-        let mut peer_list: HashMap<SocketAddr, VerificationKey> = HashMap::new();
+        let mut peer_map: HashMap<SocketAddr, VerificationKey> = HashMap::new();
         
         let mut peers = peers.lock().unwrap();
 
@@ -85,12 +85,9 @@ async fn handle_connection(raw_stream: TcpStream, addr: SocketAddr, peers: PeerM
 
         // Iterate over everything.
         for (adr, peer) in peers_iter {
-            peer_list.insert(adr.clone(), peer.public_key);
+            peer_map.insert(adr.clone(), peer.public_key);
         }
 
-        let peer_lists = PeerList{
-            peer_list
-        };
 
         let peer_struct = Peer {
             send: tx.clone(),
@@ -99,9 +96,17 @@ async fn handle_connection(raw_stream: TcpStream, addr: SocketAddr, peers: PeerM
 
         peers.insert(addr, peer_struct);
 
-        
+        let peer_map_string = serde_json::to_string(&peer_map).unwrap();
 
-        tx.try_send(Message::binary(serde_json::to_vec(&peer_lists).unwrap())).unwrap();
+        let (peer_map_hash, peer_map_signature) = credentials.hash_sign(&peer_map_string);
+
+        let init_response = InitResponse {
+            peer_map,
+            hash: peer_map_hash,
+            signature: peer_map_signature
+        };
+
+        tx.try_send(Message::binary(serde_json::to_string(&init_response).unwrap())).unwrap();
     }
 
     while let Some(msg) = read.next().await {
@@ -143,16 +148,13 @@ pub struct InitMessage {
     pub signature: Signature,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct InitResponse {
-    pub peers: HashMap<SocketAddr, VerificationKey>,
+    pub peer_map: HashMap<SocketAddr, VerificationKey>,
     pub hash: String,
     pub signature: Signature
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
-pub struct PeerList {
-    pub peer_list: HashMap<SocketAddr, VerificationKey>
-}
 
 pub fn initial_message(credentials: &Credentials) -> Message {
 
