@@ -20,6 +20,27 @@ use ed25519_consensus::{Signature, VerificationKey};
 
 use crate::Error;
 
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+pub struct Initiate {
+    pub public_key: VerificationKey,
+    pub nonce: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+pub struct InitMessage {
+    pub initiate: Initiate,
+    pub hash: String,
+    pub signature: Signature,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+pub struct InitResponse {
+    pub peer_map: HashMap<SocketAddr, VerificationKey>,
+    pub public_key: VerificationKey,
+    pub hash: String,
+    pub signature: Signature
+}
+
 pub async fn start_p2p_server(
     p2p_listener: SocketAddr,
     seed_address: SocketAddr,
@@ -79,22 +100,26 @@ async fn handle_connection(raw_stream: TcpStream, addr: SocketAddr, peers: PeerM
 
         let mut peer_map: HashMap<SocketAddr, VerificationKey> = HashMap::new();
         
-        let mut peers = peers.lock().unwrap();
+        {
+            let mut peers = peers.lock().unwrap();
 
-        let peers_iter = peers.iter();
+            let peers_iter = peers.iter();
 
-        // Iterate over everything.
-        for (adr, peer) in peers_iter {
-            peer_map.insert(adr.clone(), peer.public_key);
+            // Iterate over everything.
+            for (adr, peer) in peers_iter {
+                peer_map.insert(adr.clone(), peer.public_key);
+            }
+
+
+            let peer_struct = Peer {
+                send: tx.clone(),
+                public_key: init_message.initiate.public_key
+            };
+
+            peers.insert(addr, peer_struct);
+
+            drop(peers);
         }
-
-
-        let peer_struct = Peer {
-            send: tx.clone(),
-            public_key: init_message.initiate.public_key
-        };
-
-        peers.insert(addr, peer_struct);
 
         let peer_map_string = serde_json::to_string(&peer_map).unwrap();
 
@@ -102,11 +127,12 @@ async fn handle_connection(raw_stream: TcpStream, addr: SocketAddr, peers: PeerM
 
         let init_response = InitResponse {
             peer_map,
+            public_key: credentials.public_key,
             hash: peer_map_hash,
             signature: peer_map_signature
         };
 
-        tx.try_send(Message::binary(serde_json::to_string(&init_response).unwrap())).unwrap();
+        tx.send(Message::binary(serde_json::to_string(&init_response).unwrap())).await;
     }
 
     while let Some(msg) = read.next().await {
@@ -121,9 +147,15 @@ async fn initialize_network(seed_address: &SocketAddr, peers: PeerMap, credentia
 
     ws_stream.send(initial_message(credentials)).await.unwrap();
 
-    let msg = ws_stream.next().await;
+    let (write, mut read) = ws_stream.split();
 
-    let (write, read) = ws_stream.split();
+    if let Some(init_resp_msg) = read.next().await {
+        let init_resp_msg = init_resp_msg.unwrap();
+        
+        let init_resp_msg: InitResponse = serde_json::from_str(&init_resp_msg.into_text().unwrap()).unwrap();
+
+    }
+
 
     // Insert the write part of this peer to the peer map.
     let (tx, rx) = channel(1000);
@@ -133,26 +165,6 @@ async fn initialize_network(seed_address: &SocketAddr, peers: PeerMap, credentia
         rx.map(Ok).forward(write)
     );
     
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
-pub struct Initiate {
-    pub public_key: VerificationKey,
-    pub nonce: u64,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
-pub struct InitMessage {
-    pub initiate: Initiate,
-    pub hash: String,
-    pub signature: Signature,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
-pub struct InitResponse {
-    pub peer_map: HashMap<SocketAddr, VerificationKey>,
-    pub hash: String,
-    pub signature: Signature
 }
 
 
