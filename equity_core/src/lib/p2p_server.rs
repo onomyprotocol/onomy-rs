@@ -132,7 +132,8 @@ async fn handle_connection(raw_stream: TcpStream, addr: SocketAddr, peers: PeerM
             signature: peer_map_signature
         };
 
-        tx.send(Message::binary(serde_json::to_string(&init_response).unwrap())).await;
+        tx.send(Message::binary(serde_json::to_string(&init_response).unwrap())).await
+        .expect("Error during send");
     }
 
     while let Some(msg) = read.next().await {
@@ -149,14 +150,6 @@ async fn initialize_network(seed_address: &SocketAddr, peers: PeerMap, credentia
 
     let (write, mut read) = ws_stream.split();
 
-    if let Some(init_resp_msg) = read.next().await {
-        let init_resp_msg = init_resp_msg.unwrap();
-        
-        let init_resp_msg: InitResponse = serde_json::from_str(&init_resp_msg.into_text().unwrap()).unwrap();
-
-    }
-
-
     // Insert the write part of this peer to the peer map.
     let (tx, rx) = channel(1000);
     let rx = ReceiverStream::new(rx);
@@ -164,7 +157,22 @@ async fn initialize_network(seed_address: &SocketAddr, peers: PeerMap, credentia
     tokio::spawn(
         rx.map(Ok).forward(write)
     );
-    
+
+    if let Some(init_resp_msg) = read.next().await {
+        let init_resp_msg = init_resp_msg.unwrap();
+        
+        let init_resp_msg: InitResponse = serde_json::from_str(&init_resp_msg.into_text().unwrap()).unwrap();
+
+        let mut peers = peers.lock().unwrap();
+
+        let peer_struct = Peer {
+            send: tx.clone(),
+            public_key: init_resp_msg.public_key
+        };
+
+        peers.insert(*seed_address, peer_struct);
+
+    }
 }
 
 
