@@ -35,7 +35,7 @@ pub struct InitMessage {
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct InitResponse {
-    pub peer_map: HashMap<SocketAddr, VerificationKey>,
+    pub peer_map: HashMap<String, VerificationKey>,
     pub public_key: VerificationKey,
     pub hash: String,
     pub signature: Signature
@@ -53,7 +53,9 @@ pub async fn start_p2p_server(
     // IF seed address is not given then server will not connect to other servers
     println!("{}", seed_address.to_string());
     if seed_address.to_string() != "0.0.0.0:0".to_string() {
-        initialize_network(&seed_address, peers.clone(), &credentials).await;
+        let mut seed_address_ws = "ws://".to_string();
+        seed_address_ws.push_str(&seed_address.to_string());
+        initialize_network(&seed_address_ws, peers.clone(), &credentials).await;
     }
     
     let try_socket = TcpListener::bind(&p2p_listener).await;
@@ -98,7 +100,7 @@ async fn handle_connection(raw_stream: TcpStream, addr: SocketAddr, peers: PeerM
         
         let init_message: InitMessage = serde_json::from_str(&initial_msg.into_text().unwrap()).unwrap();
 
-        let mut peer_map: HashMap<SocketAddr, VerificationKey> = HashMap::new();
+        let mut peer_map: HashMap<String, VerificationKey> = HashMap::new();
         
         {
             let mut peers = peers.lock().unwrap();
@@ -110,13 +112,16 @@ async fn handle_connection(raw_stream: TcpStream, addr: SocketAddr, peers: PeerM
                 peer_map.insert(adr.clone(), peer.public_key);
             }
 
-
             let peer_struct = Peer {
                 send: tx.clone(),
-                public_key: init_message.initiate.public_key
+                public_key: init_message.initiate.public_key,
+                peer_map: peer_map.clone()
             };
 
-            peers.insert(addr, peer_struct);
+            let mut address_ws = "ws://".to_string();
+            address_ws.push_str(&addr.to_string());
+
+            peers.insert(address_ws, peer_struct);
 
             drop(peers);
         }
@@ -141,8 +146,8 @@ async fn handle_connection(raw_stream: TcpStream, addr: SocketAddr, peers: PeerM
     }
 }
 
-async fn initialize_network(seed_address: &SocketAddr, peers: PeerMap, credentials: &Credentials) {
-    let (mut ws_stream, _) = connect_async(seed_address.to_string()).await.expect("Failed to connect");
+async fn initialize_network(seed_address: &String, peers: PeerMap, credentials: &Credentials) {
+    let (mut ws_stream, _) = connect_async(seed_address).await.expect("Failed to connect");
     
     println!("WebSocket handshake has been successfully completed");
 
@@ -158,21 +163,65 @@ async fn initialize_network(seed_address: &SocketAddr, peers: PeerMap, credentia
         rx.map(Ok).forward(write)
     );
 
+    let mut seed_peer_map: HashMap<String, VerificationKey> = HashMap::new();
+
     if let Some(init_resp_msg) = read.next().await {
         let init_resp_msg = init_resp_msg.unwrap();
         
         let init_resp_msg: InitResponse = serde_json::from_str(&init_resp_msg.into_text().unwrap()).unwrap();
 
+        seed_peer_map = init_resp_msg.peer_map.clone();
+
         let mut peers = peers.lock().unwrap();
 
         let peer_struct = Peer {
             send: tx.clone(),
-            public_key: init_resp_msg.public_key
+            public_key: init_resp_msg.public_key,
+            peer_map: init_resp_msg.peer_map
         };
 
-        peers.insert(*seed_address, peer_struct);
+        peers.insert(seed_address.clone(), peer_struct);
 
     }
+
+    // Iterate over everything.
+    for (adr, key) in seed_peer_map {
+        let (mut ws_stream, _) = connect_async(adr.to_string()).await.expect("Failed to connect");
+
+        println!("WebSocket handshake has been successfully completed");
+
+        ws_stream.send(initial_message(credentials)).await.unwrap();
+
+        let (write, mut read) = ws_stream.split();
+
+        // Insert the write part of this peer to the peer map.
+        let (tx, rx) = channel(1000);
+        let rx = ReceiverStream::new(rx);
+
+        tokio::spawn(
+            rx.map(Ok).forward(write)
+        );
+
+        if let Some(init_resp_msg) = read.next().await {
+            let init_resp_msg = init_resp_msg.unwrap();
+            
+            let init_resp_msg: InitResponse = serde_json::from_str(&init_resp_msg.into_text().unwrap()).unwrap();
+            
+            // Need to verify msg against VerificationKey
+
+            let mut peers = peers.lock().unwrap();
+    
+            let peer_struct = Peer {
+                send: tx.clone(),
+                public_key: init_resp_msg.public_key,
+                peer_map: init_resp_msg.peer_map
+            };
+    
+            peers.insert(adr, peer_struct);
+        }
+
+    }
+
 }
 
 

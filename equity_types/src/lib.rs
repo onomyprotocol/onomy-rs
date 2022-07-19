@@ -80,9 +80,10 @@ pub enum EquityError {
 pub struct Peer {
     pub send: Sender<Message>,
     pub public_key: VerificationKey,
+    pub peer_map: HashMap<String, VerificationKey>
 }
 
-pub type PeerMap = Arc<Mutex<HashMap<SocketAddr, Peer>>>;
+pub type PeerMap = Arc<Mutex<HashMap<String, Peer>>>;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Credentials {
