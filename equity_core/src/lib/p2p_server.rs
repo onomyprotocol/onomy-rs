@@ -29,6 +29,7 @@ pub struct Initiate {
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct InitMessage {
     pub initiate: Initiate,
+    pub listener: String,
     pub hash: String,
     pub signature: Signature,
 }
@@ -55,7 +56,11 @@ pub async fn start_p2p_server(
     if seed_address.to_string() != "0.0.0.0:0".to_string() {
         let mut seed_address_ws = "ws://".to_string();
         seed_address_ws.push_str(&seed_address.to_string());
-        initialize_network(&seed_address_ws, peers.clone(), &credentials).await;
+
+        let mut p2p_address_ws = "ws://".to_string();
+        p2p_address_ws.push_str(&p2p_listener.to_string());
+
+        initialize_network(&seed_address_ws, peers.clone(), &credentials, &p2p_address_ws).await;
     }
     
     let try_socket = TcpListener::bind(&p2p_listener).await;
@@ -94,11 +99,15 @@ async fn handle_connection(raw_stream: TcpStream, addr: SocketAddr, peers: PeerM
     tokio::spawn(
         rx.map(Ok).forward(write)
     );
+
+    let mut listener: String = "0.0.0.0:0000".to_string();
     
     if let Some(initial_msg) = read.next().await {
         let initial_msg = initial_msg.unwrap();
         
         let init_message: InitMessage = serde_json::from_str(&initial_msg.into_text().unwrap()).unwrap();
+
+        listener = init_message.listener;
 
         let mut peer_map: HashMap<String, VerificationKey> = HashMap::new();
         
@@ -118,10 +127,7 @@ async fn handle_connection(raw_stream: TcpStream, addr: SocketAddr, peers: PeerM
                 peer_map: peer_map.clone()
             };
 
-            let mut address_ws = "ws://".to_string();
-            address_ws.push_str(&addr.to_string());
-
-            peers.insert(address_ws, peer_struct);
+            peers.insert(listener.clone(), peer_struct);
 
             drop(peers);
         }
@@ -144,14 +150,19 @@ async fn handle_connection(raw_stream: TcpStream, addr: SocketAddr, peers: PeerM
     while let Some(msg) = read.next().await {
         println!("Received msg: {:?}", msg);
     }
+
+    let mut peers = peers.lock().unwrap();
+
+    peers.remove(&listener);
+
 }
 
-async fn initialize_network(seed_address: &String, peers: PeerMap, credentials: &Credentials) {
+async fn initialize_network(seed_address: &String, peers: PeerMap, credentials: &Credentials, listener: &String) {
     let (mut ws_stream, _) = connect_async(seed_address).await.expect("Failed to connect");
     
     println!("WebSocket handshake has been successfully completed");
 
-    ws_stream.send(initial_message(credentials)).await.unwrap();
+    ws_stream.send(initial_message(credentials, listener)).await.unwrap();
 
     let (write, mut read) = ws_stream.split();
 
@@ -186,11 +197,12 @@ async fn initialize_network(seed_address: &String, peers: PeerMap, credentials: 
 
     // Iterate over everything.
     for (adr, key) in seed_peer_map {
-        let (mut ws_stream, _) = connect_async(adr.to_string()).await.expect("Failed to connect");
+        println!("Address: {}", adr);
+        let (mut ws_stream, _) = connect_async(&adr).await.expect("Failed to connect");
 
         println!("WebSocket handshake has been successfully completed");
 
-        ws_stream.send(initial_message(credentials)).await.unwrap();
+        ws_stream.send(initial_message(credentials, listener)).await.unwrap();
 
         let (write, mut read) = ws_stream.split();
 
@@ -225,15 +237,17 @@ async fn initialize_network(seed_address: &String, peers: PeerMap, credentials: 
 }
 
 
-pub fn initial_message(credentials: &Credentials) -> Message {
+pub fn initial_message(credentials: &Credentials, listener: &String) -> Message {
 
     let initiate: Initiate = Initiate { public_key: credentials.public_key, nonce: credentials.nonce };
 
     let message_string = serde_json::to_string(&initiate).unwrap();
 
     let (hash, signature) = credentials.hash_sign(&message_string);
+
+    let listener = listener.clone();
     
-    Message::binary(serde_json::to_vec(&InitMessage { initiate, hash, signature }).unwrap())
+    Message::binary(serde_json::to_vec(&InitMessage { initiate, listener, hash, signature }).unwrap())
 }
 
 
