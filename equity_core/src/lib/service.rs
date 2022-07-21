@@ -1,41 +1,41 @@
 use std::net::SocketAddr;
+use std::sync::{Arc, Mutex};
+use std::collections::HashMap;
+
 
 use equity_storage::EquityDatabase;
 use tokio::task::JoinHandle;
 
 use futures::future::join_all;
-use ed25519_consensus::{SigningKey, VerificationKey};
-use rand::{Rng, thread_rng};
 
-use equity_types::EquityError;
-
+use equity_types::{EquityError, PeerMap, Credentials};
 
 use crate::{
     api_server::{start_api_server},
+    p2p_server::{start_p2p_server},
     Error,
 };
 
 pub struct EquityService {
-    pub address: std::net::SocketAddr,
-    tasks: Vec<JoinHandle<Result<(), EquityError>>>,
-    private_key: SigningKey,
-    public_key: VerificationKey
+    pub api_address: std::net::SocketAddr,
+    pub p2p_address: std::net::SocketAddr,
+    tasks: Vec<JoinHandle<Result<(), EquityError>>>
 }
 
 impl EquityService {
-    pub async fn new(listener: SocketAddr, db: EquityDatabase) -> Result<Self, Error> {
-        let (address, server_handle) = start_api_server(listener, db).await?;
+    pub async fn new(api_listener: SocketAddr, p2p_listener: SocketAddr, seed_address: SocketAddr, db: EquityDatabase) -> Result<Self, Error> {
+        let peers = PeerMap::new(Mutex::new(HashMap::new()));
+        let credentials = Arc::new(Credentials::new());
 
-        let tasks = vec![server_handle];
+        let (api_address, api_server_handle) = start_api_server(api_listener, db.clone(), peers.clone(), credentials.clone()).await?;
+        let (p2p_address, p2p_server_handle) = start_p2p_server(p2p_listener, seed_address, db.clone(), peers.clone(), credentials.clone()).await?;
 
-        let sk = SigningKey::new(thread_rng());
-        let vk = VerificationKey::from(&sk);
+        let tasks = vec![api_server_handle, p2p_server_handle];
 
         Ok(Self { 
-            address: address, 
-            tasks: tasks,  
-            private_key: sk,
-            public_key: vk
+            api_address,
+            p2p_address,
+            tasks
         })
     }
 

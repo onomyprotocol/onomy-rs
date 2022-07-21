@@ -1,8 +1,9 @@
 use std::net::{SocketAddr, TcpListener};
+use std::sync::Arc;
 
 use axum::{extract::Path, routing, Extension, Json, Router};
 use equity_storage::EquityDatabase;
-use equity_types::{EquityAddressResponse, EquityError, FullMessage, HealthResponse, PostTransactionResponse};
+use equity_types::{Credentials, EquityAddressResponse, EquityError, FullMessage, HealthResponse, PeerMap, PostTransactionResponse};
 use hyper::StatusCode;
 use tokio::task::{JoinHandle, spawn_blocking};
 use tracing::info;
@@ -23,6 +24,8 @@ pub struct Peer {
 pub async fn start_api_server(
     listener: SocketAddr,
     db: EquityDatabase,
+    peers: PeerMap,
+    credentials: Arc<Credentials>
 ) -> Result<(SocketAddr, JoinHandle<Result<(), EquityError>>), Error> {
     let router = Router::new()
         .route("/health", routing::get(health))
