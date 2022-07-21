@@ -24,8 +24,8 @@ pub struct Peer {
 pub async fn start_api_server(
     listener: SocketAddr,
     db: EquityDatabase,
-    peers: PeerMap,
-    credentials: Arc<Credentials>
+    _peers: PeerMap,
+    _credentials: Arc<Credentials>
 ) -> Result<(SocketAddr, JoinHandle<Result<(), EquityError>>), Error> {
     let router = Router::new()
         .route("/health", routing::get(health))

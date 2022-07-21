@@ -9,7 +9,6 @@ use std::collections::BTreeMap;
 use tokio::sync::mpsc::Sender;
 
 use tungstenite::Message;
-use std::net::SocketAddr;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 

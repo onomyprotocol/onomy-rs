@@ -45,7 +45,7 @@ pub struct InitResponse {
 pub async fn start_p2p_server(
     p2p_listener: SocketAddr,
     seed_address: SocketAddr,
-    db: EquityDatabase,
+    _db: EquityDatabase,
     peers: PeerMap,
     credentials: Arc<Credentials>
 ) -> Result<(SocketAddr, JoinHandle<Result<(), EquityError>>), Error> {
@@ -196,7 +196,7 @@ async fn initialize_network(seed_address: &String, peers: PeerMap, credentials: 
     }
 
     // Iterate over everything.
-    for (adr, key) in seed_peer_map {
+    for (adr, _key) in seed_peer_map {
         println!("Address: {}", adr);
         let (mut ws_stream, _) = connect_async(&adr).await.expect("Failed to connect");
 
