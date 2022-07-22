@@ -25,4 +25,8 @@ which will run in the network. The test runners run with only access to their bi
 `--internal` network. Logs for each of the containers will be streamed to files under
 `testcrate/logs/`, or alternatively you can pass `--ci` and see them all inline.
 
+### scripts
+`./testcrate/scripts/fmt.sh` needs to ran before each Pull Request.
+
 TODO we need to fix the error system, we probably need a crate just for errors and import handling
+
