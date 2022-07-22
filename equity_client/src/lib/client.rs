@@ -5,17 +5,17 @@ use std::{
 };
 
 use borsh::BorshDeserialize;
-use equity_types::{Credentials, EquityAddressResponse, HealthResponse, PostTransactionResponse, FullMessage, Body};
+use equity_types::{
+    Body, Credentials, EquityAddressResponse, FullMessage, HealthResponse, PostTransactionResponse,
+};
+use rand::Rng;
 use serde::de::DeserializeOwned;
+use std::collections::BTreeMap;
 use surf::Url;
 use tokio::time::sleep;
 use tracing::info;
-use std::collections::BTreeMap;
-use rand::Rng;
-
 
 use crate::Error;
-
 
 pub struct EquityClient {
     surf_url: Url,
@@ -23,9 +23,8 @@ pub struct EquityClient {
     url_transaction: String,
     url_address: String,
     credentials: Credentials,
-    nonce: u64
+    nonce: u64,
 }
-
 
 pub async fn borsh_get<T: BorshDeserialize>(url: &Url) -> crate::Result<T> {
     let response = surf::get(url).recv_bytes().await?;
@@ -41,8 +40,7 @@ pub async fn borsh_post<T: BorshDeserialize>(url: &Url, body: FullMessage) -> cr
 
 pub async fn serde_post<T: DeserializeOwned>(url: &Url, body: FullMessage) -> crate::Result<T> {
     let response = surf::post(url).body_json(&body)?.recv_bytes().await?;
-    serde_json::from_slice(&response)
-        .map_err(|e| Error::SerdeDeserializeError(e, response))
+    serde_json::from_slice(&response).map_err(|e| Error::SerdeDeserializeError(e, response))
 }
 
 /// Used for message debugging
@@ -66,8 +64,8 @@ impl EquityClient {
             url_health: "health".to_owned(),
             url_transaction: "transaction/".to_owned(),
             url_address: "address/".to_owned(),
-            credentials: credentials,
-            nonce: 1
+            credentials,
+            nonce: 1,
         };
         info!(target = "equity-client", "URL is: {:?}", res.surf_url);
         Ok(res)
@@ -88,7 +86,7 @@ impl EquityClient {
                 let health: HealthResponse = BorshDeserialize::try_from_slice(&response)
                     .map_err(|e| Error::BorshDeserializeError(e, response))?;
                 if health.up {
-                    return Ok(())
+                    return Ok(());
                 }
             }
             sleep(Duration::from_millis(500)).await
@@ -111,7 +109,7 @@ impl EquityClient {
 
     pub fn test_transaction(&self, key_domain: &u64, value_range: &u64, iterations: &u8) -> Body {
         let mut rng = rand::thread_rng();
-        
+
         // BTreeMap needed as keys are sorted vs HashMap
         let mut keys_values = BTreeMap::new();
         for _i in 0..*iterations {
@@ -123,12 +121,11 @@ impl EquityClient {
         Body {
             public_key: self.credentials.public_key,
             nonce: self.nonce,
-            keys_values: keys_values
+            keys_values,
         }
     }
 
     pub fn create_transaction(&self, message: &Body) -> FullMessage {
-        
         let message_string = serde_json::to_string(message).unwrap();
 
         let (digest_string, signature) = self.credentials.hash_sign(&message_string);
@@ -140,8 +137,10 @@ impl EquityClient {
         }
     }
 
-
-    pub async fn post_transaction(&self, transaction: FullMessage) -> crate::Result<PostTransactionResponse> {
+    pub async fn post_transaction(
+        &self,
+        transaction: FullMessage,
+    ) -> crate::Result<PostTransactionResponse> {
         let mut url = self.surf_url.clone();
         url.set_path(&self.url_transaction);
         serde_post(&url.join(&transaction.hash)?, transaction).await

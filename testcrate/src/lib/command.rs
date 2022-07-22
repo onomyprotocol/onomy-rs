@@ -174,27 +174,27 @@ impl ComplexCommand {
             complex_output.stderr = stderr;
         } else {
             complex_output.complex_err = format!("failed to parse stderr as utf8: {:?}", output);
-            return Err(complex_output)
+            return Err(complex_output);
         }
         if let Ok(stdout) = String::from_utf8(output.stdout.clone()) {
             complex_output.stdout = stdout;
         } else {
             complex_output.complex_err = format!("failed to parse stdout as utf8: {:?}", output);
-            return Err(complex_output)
+            return Err(complex_output);
         }
         if !output.status.success() {
             complex_output.complex_err = format!(
                 "`{} {:?}` command returned exit status {}",
                 self.command, self.args, output.status
             );
-            return Err(complex_output)
+            return Err(complex_output);
         }
         while let Some(handle) = self.handles.pop() {
             match handle.await {
                 Ok(()) => (),
                 Err(e) => {
                     complex_output.complex_err = format!("`ComplexCommand` task panicked: {}", e);
-                    return Err(complex_output)
+                    return Err(complex_output);
                 }
             }
         }

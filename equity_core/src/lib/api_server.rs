@@ -3,14 +3,16 @@ use std::sync::Arc;
 
 use axum::{extract::Path, routing, Extension, Json, Router};
 use equity_storage::EquityDatabase;
-use equity_types::{Credentials, EquityAddressResponse, EquityError, FullMessage, HealthResponse, PeerMap, PostTransactionResponse};
+use equity_types::{
+    Credentials, EquityAddressResponse, EquityError, FullMessage, HealthResponse, PeerMap,
+    PostTransactionResponse,
+};
 use hyper::StatusCode;
-use tokio::task::{JoinHandle, spawn_blocking};
-use tracing::info;
 use serde::{Deserialize, Serialize};
+use tokio::task::{spawn_blocking, JoinHandle};
+use tracing::info;
 
-
-use ed25519_consensus::{VerificationKey};
+use ed25519_consensus::VerificationKey;
 use sha2::{Digest, Sha512};
 
 use crate::{borsh::Borsh, Error};
@@ -18,19 +20,22 @@ use crate::{borsh::Borsh, Error};
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Peer {
     address: SocketAddr,
-    public_key: VerificationKey
+    public_key: VerificationKey,
 }
 
 pub async fn start_api_server(
     listener: SocketAddr,
     db: EquityDatabase,
     _peers: PeerMap,
-    _credentials: Arc<Credentials>
+    _credentials: Arc<Credentials>,
 ) -> Result<(SocketAddr, JoinHandle<Result<(), EquityError>>), Error> {
     let router = Router::new()
         .route("/health", routing::get(health))
         .route("/address/:key", routing::get(get_address).post(set_address))
-        .route("/transaction/:id", routing::get(transaction).post(transaction))
+        .route(
+            "/transaction/:id",
+            routing::get(transaction).post(transaction),
+        )
         .layer(Extension(db));
 
     let listener = TcpListener::bind(&listener)?;
@@ -64,30 +69,28 @@ async fn transaction(
     Json(payload): Json<FullMessage>,
     Extension(state): Extension<EquityDatabase>,
 ) -> Result<Json<PostTransactionResponse>, StatusCode> {
-
     info!(target = "equity-core", "Transaction API");
 
     // Check database if Mapping [hash -> tx_record] exists
     // If value exists revert transaction
 
     if let Ok(Some(_value)) = state.get::<FullMessage>(&payload.hash.as_bytes()) {
-        return Ok(Json(PostTransactionResponse { 
-            success: false, 
-            msg: "Revert: TX already exists".to_string()  
-        }))
+        return Ok(Json(PostTransactionResponse {
+            success: false,
+            msg: "Revert: TX already exists".to_string(),
+        }));
     };
 
     // Verify signature
     // If signature is not verified then revert transaction
 
     let payload_verify = payload.clone();
-    
-    if let Ok(Err(e)) = spawn_blocking(move || verify_body(payload_verify)).await
-    {
-        return Ok(Json(PostTransactionResponse { 
-                success: false, 
-                msg: e.to_string()  
-        }))
+
+    if let Ok(Err(e)) = spawn_blocking(move || verify_body(payload_verify)).await {
+        return Ok(Json(PostTransactionResponse {
+            success: false,
+            msg: e.to_string(),
+        }));
     }
 
     // Post transaction record to db
@@ -95,30 +98,29 @@ async fn transaction(
     // let payload_hash = payload.hash;
 
     if let Ok(None) = state.set(&payload.hash, payload_entry) {
-        return Ok(Json(PostTransactionResponse { 
-            success: true, 
-            msg: "Transaction entry recorded to db".to_string()  
-        }))
+        return Ok(Json(PostTransactionResponse {
+            success: true,
+            msg: "Transaction entry recorded to db".to_string(),
+        }));
     };
 
-    Ok(Json(PostTransactionResponse { 
-        success: false, 
-        msg: "Transaction not recorded to db".to_string()  
+    Ok(Json(PostTransactionResponse {
+        success: false,
+        msg: "Transaction not recorded to db".to_string(),
     }))
 }
 
-fn verify_body (
-    payload: FullMessage
-) -> Result<(), ed25519_consensus::Error> {
-    
+fn verify_body(payload: FullMessage) -> Result<(), ed25519_consensus::Error> {
     let mut digest: Sha512 = Sha512::new();
-    
+
     digest.update(serde_json::to_string(&payload.body).unwrap());
 
     let digest_string: String = format!("{:X}", digest.clone().finalize());
 
-    payload.body.public_key.verify(&payload.signature, &digest_string.as_bytes())
-
+    payload
+        .body
+        .public_key
+        .verify(&payload.signature, &digest_string.as_bytes())
 }
 
 // TODO should we use some binary instead of a path?

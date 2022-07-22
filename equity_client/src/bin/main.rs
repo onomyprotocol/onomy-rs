@@ -18,9 +18,15 @@ struct CliArgs {
 
 #[derive(Parser)]
 enum Command {
-    Account { address: String },
+    Account {
+        address: String,
+    },
     Health,
-    Transaction { key_domain: u64, value_range: u64, iterations: u8 }
+    Transaction {
+        key_domain: u64,
+        value_range: u64,
+        iterations: u8,
+    },
 }
 
 #[tokio::main]
@@ -37,8 +43,12 @@ pub async fn main() {
         Command::Health => {
             let response = client.health().await.unwrap();
             info!("Health Response is: {:?}", response);
-        },
-        Command::Transaction { key_domain, value_range, iterations } => {
+        }
+        Command::Transaction {
+            key_domain,
+            value_range,
+            iterations,
+        } => {
             println!("DB Key Domain: {:?}", key_domain);
             println!("DB Key Range: {:?}", value_range);
             println!("Iterations: {:?}", iterations);

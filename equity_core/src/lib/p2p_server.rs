@@ -1,20 +1,18 @@
+use equity_storage::EquityDatabase;
+use equity_types::{Credentials, EquityError, Peer, PeerMap};
+use futures::{SinkExt, StreamExt};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use std::collections::HashMap;
-use tokio_stream::wrappers::ReceiverStream;
+use tokio::task::JoinHandle;
 use tokio::{
     net::{TcpListener, TcpStream},
-    sync::mpsc::channel};
-use tokio_tungstenite::{
-    connect_async,
-    tungstenite::Message
+    sync::mpsc::channel,
 };
-use futures::{SinkExt, StreamExt};
-use equity_storage::EquityDatabase;
-use equity_types::{Credentials, EquityError, PeerMap, Peer};
-use tokio::task::{JoinHandle};
+use tokio_stream::wrappers::ReceiverStream;
+use tokio_tungstenite::{connect_async, tungstenite::Message};
 use tracing::info;
-use serde::{Deserialize, Serialize};
 
 use ed25519_consensus::{Signature, VerificationKey};
 
@@ -39,7 +37,7 @@ pub struct InitResponse {
     pub peer_map: HashMap<String, VerificationKey>,
     pub public_key: VerificationKey,
     pub hash: String,
-    pub signature: Signature
+    pub signature: Signature,
 }
 
 pub async fn start_p2p_server(
@@ -47,10 +45,8 @@ pub async fn start_p2p_server(
     seed_address: SocketAddr,
     _db: EquityDatabase,
     peers: PeerMap,
-    credentials: Arc<Credentials>
+    credentials: Arc<Credentials>,
 ) -> Result<(SocketAddr, JoinHandle<Result<(), EquityError>>), Error> {
-
-
     // IF seed address is not given then server will not connect to other servers
     println!("{}", seed_address.to_string());
     if seed_address.to_string() != "0.0.0.0:0".to_string() {
@@ -60,19 +56,30 @@ pub async fn start_p2p_server(
         let mut p2p_address_ws = "ws://".to_string();
         p2p_address_ws.push_str(&p2p_listener.to_string());
 
-        initialize_network(&seed_address_ws, peers.clone(), &credentials, &p2p_address_ws).await;
+        initialize_network(
+            &seed_address_ws,
+            peers.clone(),
+            &credentials,
+            &p2p_address_ws,
+        )
+        .await;
     }
-    
+
     let try_socket = TcpListener::bind(&p2p_listener).await;
     let listener = try_socket.expect("Failed to bind");
     let bound_addr = listener.local_addr().unwrap();
 
     info!(target: "equity-core", "Starting P2P Server");
-    
+
     let handle = tokio::spawn(async move {
         // Let's spawn the handling of each connection in a separate task.
         while let Ok((stream, addr)) = listener.accept().await {
-            tokio::spawn(handle_connection(stream, addr, peers.clone(), credentials.clone()));
+            tokio::spawn(handle_connection(
+                stream,
+                addr,
+                peers.clone(),
+                credentials.clone(),
+            ));
         }
         Ok(())
     });
@@ -82,7 +89,12 @@ pub async fn start_p2p_server(
     Ok((bound_addr, handle))
 }
 
-async fn handle_connection(raw_stream: TcpStream, addr: SocketAddr, peers: PeerMap, credentials: Arc<Credentials>) {
+async fn handle_connection(
+    raw_stream: TcpStream,
+    addr: SocketAddr,
+    peers: PeerMap,
+    credentials: Arc<Credentials>,
+) {
     println!("Incoming TCP connection from: {}", addr);
 
     let ws_stream = tokio_tungstenite::accept_async(raw_stream)
@@ -96,21 +108,20 @@ async fn handle_connection(raw_stream: TcpStream, addr: SocketAddr, peers: PeerM
     let (tx, rx) = channel(1000);
     let rx = ReceiverStream::new(rx);
 
-    tokio::spawn(
-        rx.map(Ok).forward(write)
-    );
+    tokio::spawn(rx.map(Ok).forward(write));
 
     let mut listener: String = "0.0.0.0:0000".to_string();
-    
+
     if let Some(initial_msg) = read.next().await {
         let initial_msg = initial_msg.unwrap();
-        
-        let init_message: InitMessage = serde_json::from_str(&initial_msg.into_text().unwrap()).unwrap();
+
+        let init_message: InitMessage =
+            serde_json::from_str(&initial_msg.into_text().unwrap()).unwrap();
 
         listener = init_message.listener;
 
         let mut peer_map: HashMap<String, VerificationKey> = HashMap::new();
-        
+
         {
             let mut peers = peers.lock().unwrap();
 
@@ -124,7 +135,7 @@ async fn handle_connection(raw_stream: TcpStream, addr: SocketAddr, peers: PeerM
             let peer_struct = Peer {
                 send: tx.clone(),
                 public_key: init_message.initiate.public_key,
-                peer_map: peer_map.clone()
+                peer_map: peer_map.clone(),
             };
 
             peers.insert(listener.clone(), peer_struct);
@@ -140,10 +151,13 @@ async fn handle_connection(raw_stream: TcpStream, addr: SocketAddr, peers: PeerM
             peer_map,
             public_key: credentials.public_key,
             hash: peer_map_hash,
-            signature: peer_map_signature
+            signature: peer_map_signature,
         };
 
-        tx.send(Message::binary(serde_json::to_string(&init_response).unwrap())).await
+        tx.send(Message::binary(
+            serde_json::to_string(&init_response).unwrap(),
+        ))
+        .await
         .expect("Error during send");
     }
 
@@ -154,15 +168,24 @@ async fn handle_connection(raw_stream: TcpStream, addr: SocketAddr, peers: PeerM
     let mut peers = peers.lock().unwrap();
 
     peers.remove(&listener);
-
 }
 
-async fn initialize_network(seed_address: &String, peers: PeerMap, credentials: &Credentials, listener: &String) {
-    let (mut ws_stream, _) = connect_async(seed_address).await.expect("Failed to connect");
-    
+async fn initialize_network(
+    seed_address: &String,
+    peers: PeerMap,
+    credentials: &Credentials,
+    listener: &String,
+) {
+    let (mut ws_stream, _) = connect_async(seed_address)
+        .await
+        .expect("Failed to connect");
+
     println!("WebSocket handshake has been successfully completed");
 
-    ws_stream.send(initial_message(credentials, listener)).await.unwrap();
+    ws_stream
+        .send(initial_message(credentials, listener))
+        .await
+        .unwrap();
 
     let (write, mut read) = ws_stream.split();
 
@@ -170,16 +193,15 @@ async fn initialize_network(seed_address: &String, peers: PeerMap, credentials: 
     let (tx, rx) = channel(1000);
     let rx = ReceiverStream::new(rx);
 
-    tokio::spawn(
-        rx.map(Ok).forward(write)
-    );
+    tokio::spawn(rx.map(Ok).forward(write));
 
     let mut seed_peer_map: HashMap<String, VerificationKey> = HashMap::new();
 
     if let Some(init_resp_msg) = read.next().await {
         let init_resp_msg = init_resp_msg.unwrap();
-        
-        let init_resp_msg: InitResponse = serde_json::from_str(&init_resp_msg.into_text().unwrap()).unwrap();
+
+        let init_resp_msg: InitResponse =
+            serde_json::from_str(&init_resp_msg.into_text().unwrap()).unwrap();
 
         seed_peer_map = init_resp_msg.peer_map.clone();
 
@@ -188,11 +210,10 @@ async fn initialize_network(seed_address: &String, peers: PeerMap, credentials: 
         let peer_struct = Peer {
             send: tx.clone(),
             public_key: init_resp_msg.public_key,
-            peer_map: init_resp_msg.peer_map
+            peer_map: init_resp_msg.peer_map,
         };
 
         peers.insert(seed_address.clone(), peer_struct);
-
     }
 
     // Iterate over everything.
@@ -202,7 +223,10 @@ async fn initialize_network(seed_address: &String, peers: PeerMap, credentials: 
 
         println!("WebSocket handshake has been successfully completed");
 
-        ws_stream.send(initial_message(credentials, listener)).await.unwrap();
+        ws_stream
+            .send(initial_message(credentials, listener))
+            .await
+            .unwrap();
 
         let (write, mut read) = ws_stream.split();
 
@@ -210,44 +234,48 @@ async fn initialize_network(seed_address: &String, peers: PeerMap, credentials: 
         let (tx, rx) = channel(1000);
         let rx = ReceiverStream::new(rx);
 
-        tokio::spawn(
-            rx.map(Ok).forward(write)
-        );
+        tokio::spawn(rx.map(Ok).forward(write));
 
         if let Some(init_resp_msg) = read.next().await {
             let init_resp_msg = init_resp_msg.unwrap();
-            
-            let init_resp_msg: InitResponse = serde_json::from_str(&init_resp_msg.into_text().unwrap()).unwrap();
-            
+
+            let init_resp_msg: InitResponse =
+                serde_json::from_str(&init_resp_msg.into_text().unwrap()).unwrap();
+
             // Need to verify msg against VerificationKey
 
             let mut peers = peers.lock().unwrap();
-    
+
             let peer_struct = Peer {
                 send: tx.clone(),
                 public_key: init_resp_msg.public_key,
-                peer_map: init_resp_msg.peer_map
+                peer_map: init_resp_msg.peer_map,
             };
-    
+
             peers.insert(adr, peer_struct);
         }
-
     }
-
 }
 
-
 pub fn initial_message(credentials: &Credentials, listener: &String) -> Message {
-
-    let initiate: Initiate = Initiate { public_key: credentials.public_key, nonce: credentials.nonce };
+    let initiate: Initiate = Initiate {
+        public_key: credentials.public_key,
+        nonce: credentials.nonce,
+    };
 
     let message_string = serde_json::to_string(&initiate).unwrap();
 
     let (hash, signature) = credentials.hash_sign(&message_string);
 
     let listener = listener.clone();
-    
-    Message::binary(serde_json::to_vec(&InitMessage { initiate, listener, hash, signature }).unwrap())
+
+    Message::binary(
+        serde_json::to_vec(&InitMessage {
+            initiate,
+            listener,
+            hash,
+            signature,
+        })
+        .unwrap(),
+    )
 }
-
-
