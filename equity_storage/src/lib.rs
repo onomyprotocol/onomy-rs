@@ -1,8 +1,7 @@
 mod in_memory;
 use std::{fmt::Debug, sync::Arc};
 
-use serde::{Serialize};
-use serde::de::DeserializeOwned;
+use serde::{de::DeserializeOwned, Serialize};
 use serde_json::*;
 
 pub enum DatabaseType {
