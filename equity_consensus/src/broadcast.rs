@@ -1,19 +1,25 @@
 use std::collections::HashMap;
+use sha2::Digest;
 use tokio::sync::mpsc;
 
 use tokio::sync::oneshot;
-use bytes::Bytes;
+
+pub struct BrbMap {
+    mapping: HashMap<dyn Digest, mpsc::Sender<BrbMsg>>
+}
 
 /// Multiple different commands are multiplexed over a single channel.
+/// Each Byzantine Reliable Broadcast instance has its own task that maintains state
+/// The Routing HashMap stores the Senders to the Task mangaging the instance of BRB
 #[derive(Debug)]
 enum Command {
     Get {
-        key: String,
+        key: Digest,
         resp: Responder<Option<mpsc::Sender<BrbMsg>>>,
     },
     Set {
-        key: String,
-        val: Bytes,
+        key: Digest,
+        val: mpsc::Sender<BrbMsg>,
         resp: Responder<()>,
     },
 }
