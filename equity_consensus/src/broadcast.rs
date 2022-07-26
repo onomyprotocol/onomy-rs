@@ -1,11 +1,18 @@
 use std::collections::HashMap;
-use sha2::Digest;
 use tokio::sync::mpsc;
-
 use tokio::sync::oneshot;
 
+// The HashMa
 pub struct BrbMap {
-    mapping: HashMap<dyn Digest, mpsc::Sender<BrbMsg>>
+    sender: mpsc::Sender<Command>
+}
+
+impl BrbMap {
+    pub fn new() {
+        let (tx, rx) = mpsc::channel(1000);
+        let manager = tokio::spawn(
+        );
+    }
 }
 
 /// Multiple different commands are multiplexed over a single channel.
@@ -14,11 +21,11 @@ pub struct BrbMap {
 #[derive(Debug)]
 enum Command {
     Get {
-        key: Digest,
+        key: String,
         resp: Responder<Option<mpsc::Sender<BrbMsg>>>,
     },
     Set {
-        key: Digest,
+        key: String,
         val: mpsc::Sender<BrbMsg>,
         resp: Responder<()>,
     },
