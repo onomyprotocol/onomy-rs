@@ -738,6 +738,7 @@ dependencies = [
  "borsh",
  "clap",
  "ed25519-consensus",
+ "equity_consensus",
  "equity_storage",
  "equity_types",
  "futures",
