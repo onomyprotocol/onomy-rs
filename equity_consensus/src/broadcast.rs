@@ -10,7 +10,30 @@ pub struct BrbMap {
 impl BrbMap {
     pub fn new() {
         let (tx, rx) = mpsc::channel(1000);
-        let manager = tokio::spawn(
+        let manager = tokio::spawn(async move
+            {
+                let brb_map: HashMap<String, mpsc::Sender<BrbMsg>> = HashMap::new();
+
+                while let Some(cmd) = rx.recv().await {
+                    match cmd {
+                        Command::Get { key, resp } => {
+                            let sender = Option<mpsc::Sender<BrbMsg>>
+                            if let Some(res) = brb_map.get(&key) {
+                                
+                            }
+                            let sender = res.clone();
+                            // Ignore errors
+                            let _ = resp.send(sender);
+                        }
+                        Command::Set { key, val, resp } => {
+                            let res = brb_map.insert(key, val);
+                            // Ignore errors
+                            let _ = resp.send(res);
+                        }
+                    }
+                }
+            }
+            
         );
     }
 }
@@ -29,6 +52,11 @@ enum Command {
         val: mpsc::Sender<BrbMsg>,
         resp: Responder<()>,
     },
+}
+
+enum BrbSender {
+    Some(),
+    None
 }
 
 enum BrbMsg {
