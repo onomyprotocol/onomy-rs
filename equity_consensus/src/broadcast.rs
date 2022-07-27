@@ -17,17 +17,17 @@ impl BrbMap {
                 while let Some(cmd) = rx.recv().await {
                     match cmd {
                         Command::Get { key, resp } => {
-                            let sender = Option<mpsc::Sender<BrbMsg>>
+                            let mut sender = None;
                             if let Some(res) = brb_map.get(&key) {
-                                
+                                sender = Some(res.clone());
                             }
-                            let sender = res.clone();
-                            // Ignore errors
                             let _ = resp.send(sender);
                         }
                         Command::Set { key, val, resp } => {
-                            let res = brb_map.insert(key, val);
-                            // Ignore errors
+                            if let res = brb_map.insert(key, val) {
+
+                            }
+                            
                             let _ = resp.send(res);
                         }
                     }
@@ -52,11 +52,6 @@ enum Command {
         val: mpsc::Sender<BrbMsg>,
         resp: Responder<()>,
     },
-}
-
-enum BrbSender {
-    Some(),
-    None
 }
 
 enum BrbMsg {
