@@ -12,6 +12,8 @@ impl BrbMap {
         let (tx, mut rx) = mpsc::channel(1000);
         tokio::spawn(async move
             {
+                // Optimize to HashMap that uses the SHA512 directly without hashing a key
+                // String and std::collections::hashmap is just a convenience for now.
                 let mut brb_map: HashMap<String, mpsc::Sender<BrbMsg>> = HashMap::new();
 
                 while let Some(cmd) = rx.recv().await {
