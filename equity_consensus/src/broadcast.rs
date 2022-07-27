@@ -8,11 +8,11 @@ pub struct BrbMap {
 }
 
 impl BrbMap {
-    pub fn new() {
-        let (tx, rx) = mpsc::channel(1000);
-        let manager = tokio::spawn(async move
+    pub fn new() -> BrbMap {
+        let (tx, mut rx) = mpsc::channel(1000);
+        tokio::spawn(async move
             {
-                let brb_map: HashMap<String, mpsc::Sender<BrbMsg>> = HashMap::new();
+                let mut brb_map: HashMap<String, mpsc::Sender<BrbMsg>> = HashMap::new();
 
                 while let Some(cmd) = rx.recv().await {
                     match cmd {
@@ -24,17 +24,19 @@ impl BrbMap {
                             let _ = resp.send(sender);
                         }
                         Command::Set { key, val, resp } => {
-                            if let res = brb_map.insert(key, val) {
-
+                            let mut exists: bool = false;
+                            if let Some(_res) = brb_map.insert(key, val) {
+                                exists = true;
                             }
-                            
-                            let _ = resp.send(res);
+                            let _ = resp.send(exists);
                         }
                     }
                 }
             }
-            
         );
+        BrbMap {
+            sender: tx
+        }
     }
 }
 
@@ -50,7 +52,7 @@ enum Command {
     Set {
         key: String,
         val: mpsc::Sender<BrbMsg>,
-        resp: Responder<()>,
+        resp: Responder<bool>,
     },
 }
 
