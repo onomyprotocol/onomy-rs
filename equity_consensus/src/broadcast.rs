@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
+use ed25519_consensus::{Signature, VerificationKey};
 
 // The HashMa
 
@@ -46,16 +47,49 @@ impl Brb {
     // All BRB broadcast messages are either initiated or received.
     // Initiation is prompted by out of network messages (client / new validator) or enabled consensus condition.
     // All in-network messages are Received as part of Brb Broadcast
-    pub fn initiate (&self, hash: String) {
-        let (tx, rx) = mpsc::channel(1000);
+    pub async fn initiate (&self, hash: String) {
+        let (brb_tx, mut brb_rx) = mpsc::channel(1000);
+        let (brb_one_tx, brb_one_rx) = oneshot::channel();
+        
         tokio::spawn(async move
             {
-                while let Some(BrbMsg) = rx.recv().await {
-
+                while let Some(brb_msg) = brb_rx.recv().await {
+                    match brb_msg {
+                        BrbMsg::Init { } => {
+                            
+                        }
+                        BrbMsg::Echo { } => {
+                            
+                        }
+                        BrbMsg::Ready { } => {
+                            
+                        }
+                    }
                 }
+
+                brb_one_tx.send(true).unwrap();
             }
         );
-        self.sender.send(Command::set(hash, tx));
+
+        let (one_tx, one_rx) = oneshot::channel();
+
+        self.sender.send(Command::Set
+            {
+                key: hash, 
+                val: brb_tx, 
+                resp: one_tx
+            }
+        ).await.unwrap();
+
+        match one_rx.await {
+            Ok(v) => println!("got = {:?}", v),
+            Err(_) => println!("the sender dropped"),
+        }
+
+        match brb_one_rx.await {
+            Ok(v) => println!("got = {:?}", v),
+            Err(_) => println!("the sender dropped"),
+        }
     }
 
     pub fn receive () {
@@ -90,6 +124,20 @@ enum BrbMsg {
     Ready {
 
     }
+}
+
+pub struct BrbInternal {
+    hash: String,
+    body: BrbBody,
+    signature: Signature,
+    init: bool,
+    echo: Vec<VerificationKey>,
+    ready: Vec<VerificationKey>,
+    commit: bool
+}
+
+enum BrbBody {
+
 }
 
 /// Provided by the requester and used by the manager task to send

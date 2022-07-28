@@ -725,6 +725,7 @@ dependencies = [
 name = "equity_consensus"
 version = "0.1.0"
 dependencies = [
+ "ed25519-consensus",
  "sha2 0.10.2",
  "tokio",
 ]
