@@ -42,8 +42,17 @@ impl Brb {
             sender: tx
         }
     }
+    
+    // All BRB broadcast messages are either initiated or received.
+    // Initiation is prompted by out of network messages (client / new validator) or enabled consensus condition.
+    // All in-network messages are Received as part of Brb Broadcast
+    pub fn initiate () {
 
+    }
 
+    pub fn receive () {
+
+    }
 
 }
 
