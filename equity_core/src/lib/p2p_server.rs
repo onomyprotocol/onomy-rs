@@ -13,6 +13,7 @@ use tokio::{
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 use tracing::info;
+use equity_consensus::Brb;
 
 use crate::Error;
 
@@ -43,6 +44,7 @@ pub async fn start_p2p_server(
     seed_address: SocketAddr,
     _db: EquityDatabase,
     peers: PeerMap,
+    _brb: Brb,
     credentials: Arc<Credentials>,
 ) -> Result<(SocketAddr, JoinHandle<Result<(), EquityError>>), Error> {
     if seed_address.to_string() != *"0.0.0.0:0" {

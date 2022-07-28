@@ -3,12 +3,14 @@ use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 
 // The HashMa
-pub struct BrbMap {
+
+#[derive(Debug, Clone)]
+    pub struct Brb {
     sender: mpsc::Sender<Command>
 }
 
-impl BrbMap {
-    pub fn new() -> BrbMap {
+impl Brb {
+    pub fn new() -> Brb {
         let (tx, mut rx) = mpsc::channel(1000);
         tokio::spawn(async move
             {
@@ -36,10 +38,13 @@ impl BrbMap {
                 }
             }
         );
-        BrbMap {
+        Brb {
             sender: tx
         }
     }
+
+
+
 }
 
 /// Multiple different commands are multiplexed over a single channel.

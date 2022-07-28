@@ -5,7 +5,7 @@ use std::{
 };
 
 use equity_storage::EquityDatabase;
-use equity_consensus::BrbMap;
+use equity_consensus::Brb;
 use equity_types::{Credentials, EquityError, PeerMap};
 use futures::future::join_all;
 use tokio::task::JoinHandle;
@@ -28,7 +28,7 @@ impl EquityService {
         let peers = PeerMap::new(Mutex::new(HashMap::new()));
         let credentials = Arc::new(Credentials::new());
 
-        let _brb_map = BrbMap::new();
+        let brb = Brb::new();
 
         let (api_address, api_server_handle) =
             start_api_server(api_listener, db.clone(), peers.clone(), credentials.clone()).await?;
@@ -37,6 +37,7 @@ impl EquityService {
             seed_address,
             db.clone(),
             peers.clone(),
+            brb,
             credentials.clone(),
         )
         .await?;
