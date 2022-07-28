@@ -46,8 +46,16 @@ impl Brb {
     // All BRB broadcast messages are either initiated or received.
     // Initiation is prompted by out of network messages (client / new validator) or enabled consensus condition.
     // All in-network messages are Received as part of Brb Broadcast
-    pub fn initiate () {
+    pub fn initiate (&self, hash: String) {
+        let (tx, rx) = mpsc::channel(1000);
+        tokio::spawn(async move
+            {
+                while let Some(BrbMsg) = rx.recv().await {
 
+                }
+            }
+        );
+        self.sender.send(Command::set(hash, tx));
     }
 
     pub fn receive () {
