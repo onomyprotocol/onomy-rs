@@ -7,9 +7,10 @@ use axum::{extract::Path, routing, Extension, Json, Router};
 use ed25519_consensus::VerificationKey;
 use equity_storage::EquityDatabase;
 use equity_types::{
-    Credentials, EquityAddressResponse, EquityError, FullMessage, HealthResponse, PeerMap,
+    Credentials, EquityAddressResponse, EquityError, FullMessage, HealthResponse,
     PostTransactionResponse,
 };
+use equity_p2p::PeerMap;
 use hyper::StatusCode;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha512};

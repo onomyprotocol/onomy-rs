@@ -2,7 +2,7 @@ use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 
 use ed25519_consensus::{Signature, VerificationKey};
 use equity_storage::EquityDatabase;
-use equity_types::{Credentials, EquityError, Peer, PeerMap};
+use equity_types::{Credentials, EquityError};
 use futures::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use tokio::{
@@ -14,6 +14,7 @@ use tokio_stream::wrappers::ReceiverStream;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 use tracing::info;
 use equity_consensus::Brb;
+use equity_p2p::{Peer, PeerMap};
 
 use crate::Error;
 
@@ -216,42 +217,7 @@ async fn initialize_network(
 
     // Iterate over everything.
     for (adr, _key) in seed_peer_map {
-        println!("Address: {}", adr);
-        let (mut ws_stream, _) = connect_async(&adr).await.expect("Failed to connect");
-
-        println!("WebSocket handshake has been successfully completed");
-
-        ws_stream
-            .send(initial_message(credentials, listener))
-            .await
-            .unwrap();
-
-        let (write, mut read) = ws_stream.split();
-
-        // Insert the write part of this peer to the peer map.
-        let (tx, rx) = channel(1000);
-        let rx = ReceiverStream::new(rx);
-
-        tokio::spawn(rx.map(Ok).forward(write));
-
-        if let Some(init_resp_msg) = read.next().await {
-            let init_resp_msg = init_resp_msg.unwrap();
-
-            let init_resp_msg: InitResponse =
-                serde_json::from_str(&init_resp_msg.into_text().unwrap()).unwrap();
-
-            // Need to verify msg against VerificationKey
-
-            let mut peers = peers.lock().unwrap();
-
-            let peer_struct = Peer {
-                send: tx.clone(),
-                public_key: init_resp_msg.public_key,
-                peer_map: init_resp_msg.peer_map,
-            };
-
-            peers.insert(adr, peer_struct);
-        }
+        
     }
 }
 

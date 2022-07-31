@@ -6,9 +6,10 @@ use std::{
 
 use equity_storage::EquityDatabase;
 use equity_consensus::Brb;
-use equity_types::{Credentials, EquityError, PeerMap};
+use equity_types::{Credentials, EquityError};
 use futures::future::join_all;
 use tokio::task::JoinHandle;
+use equity_p2p::PeerMap;
 
 use crate::{api_server::start_api_server, p2p_server::start_p2p_server, Error};
 

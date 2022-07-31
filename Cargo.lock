@@ -740,6 +740,7 @@ dependencies = [
  "clap",
  "ed25519-consensus",
  "equity_consensus",
+ "equity_p2p",
  "equity_storage",
  "equity_types",
  "futures",
@@ -763,6 +764,11 @@ dependencies = [
 [[package]]
 name = "equity_p2p"
 version = "0.1.0"
+dependencies = [
+ "ed25519-consensus",
+ "tokio",
+ "tungstenite",
+]
 
 [[package]]
 name = "equity_storage"

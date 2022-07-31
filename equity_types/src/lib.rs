@@ -10,8 +10,6 @@ use ed25519_consensus::{Signature, SigningKey, VerificationKey};
 use rand::thread_rng;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha512};
-use tokio::sync::mpsc::Sender;
-use tungstenite::Message;
 
 // TODO common derive macro
 
@@ -71,15 +69,6 @@ pub enum EquityError {
     #[error("An api server error occurred {0}")]
     ApiServer(#[from] hyper::Error),
 }
-
-#[derive(Debug)]
-pub struct Peer {
-    pub send: Sender<Message>,
-    pub public_key: VerificationKey,
-    pub peer_map: HashMap<String, VerificationKey>,
-}
-
-pub type PeerMap = Arc<Mutex<HashMap<String, Peer>>>;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Credentials {

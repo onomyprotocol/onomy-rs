@@ -16,6 +16,7 @@ path = "src/bin/main.rs"
 equity_storage = { path = "../equity_storage" }
 equity_types = { path = "../equity_types" }
 equity_consensus = { path = "../equity_consensus" }
+equity_p2p = { path = "../equity_p2p"}
 
 async-trait = "0.1"
 axum = "0.5"
