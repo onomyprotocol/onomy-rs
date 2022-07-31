@@ -34,6 +34,7 @@ pub async fn start_api_server(
     let router = Router::new()
         .route("/health", routing::get(health))
         .route("/address/:key", routing::get(get_address).post(set_address))
+        .route("/validators", routing::get(get_validators).post(set_validator))
         .route(
             "/transaction/:id",
             routing::get(transaction).post(transaction),
@@ -65,6 +66,23 @@ pub async fn start_api_server(
 async fn health() -> Borsh<HealthResponse> {
     info!(target = "equity-core", "Health API");
     Borsh(HealthResponse { up: true })
+}
+
+async fn get_validators() -> Borsh<HealthResponse> {
+    info!(target = "equity-core", "Health API");
+    Borsh(HealthResponse { up: true })
+}
+
+async fn set_validator(
+    Json(payload): Json<FullMessage>,
+    Extension(state): Extension<EquityDatabase>,
+) -> Result<Json<PostTransactionResponse>, StatusCode> {
+    info!(target = "equity-core", "Transaction API");
+
+    Ok(Json(PostTransactionResponse {
+        success: false,
+        msg: "Transaction not recorded to db".to_string(),
+    }))
 }
 
 async fn transaction(
