@@ -1,6 +1,6 @@
 use std::{
     collections::BTreeMap,
-    io,
+    io::{self, Write},
     str::FromStr,
     time::{Duration, Instant},
 };
@@ -9,16 +9,11 @@ use futures::{SinkExt, StreamExt};
 
 use serde_json;
 
-use tokio_tungstenite::{connect_async, tungstenite::Message, WebSocketStream};
+use tokio_tungstenite::{connect_async, tungstenite::Message};
 
-use tokio::{
-    net::{TcpListener, TcpStream},
-    sync::mpsc::{Sender, channel},
-    task::JoinHandle,
-};
+use tokio::sync::mpsc::{Sender, channel};
 
-use equity_types::{
-    Credentials, ClientCommand};
+use equity_types::{Credentials, ClientCommand, TransactionBody};
 
 
 use rand::Rng;
@@ -36,48 +31,50 @@ use tracing::info;
 use crate::Error;
 
 pub struct EquityClient {
-    send: Sender<ClientCommand>,
+    sender: Sender<ClientCommand>,
     credentials: Credentials,
-    nonce: u64,
-    handle: JoinHandle<()>
+    nonce: u64
 }
 
 impl EquityClient {
     pub async fn new(url: &str) -> Result<Self, Error> {
         
-        let (mut ws_stream, _) = connect_async(seed_address)
+        let (ws_stream, _) = connect_async(url)
         .await
         .expect("Failed to connect");
 
         println!("WebSocket connection established: {}", url);
 
-        let (write, read) = ws_stream.split();
+        let (mut write, mut read) = ws_stream.split();
 
         let credentials = Credentials::new();
 
         // Insert the write part of this peer to the peer map.
-        let (tx, rx) = channel(1000);
+        let (tx, rx) = channel::<ClientCommand>(1000);
+        
         let rx = ReceiverStream::new(rx);
 
-        tokio::spawn({
-            rx.map(Ok).then(
-                |Ok(msg)| async move { 
-                    serde_json::to_vec(msg)
-            }).map(Ok).forward(write)
+        tokio::spawn(async move {
+            while let Some(msg) = rx.next().await {
+                write.send(
+                    Message::binary(
+                        serde_json::to_vec(&msg).expect("msg does not have serde serialize trait"))
+                    );
+            }
+        });
+        
+        tokio::spawn(async move {
+            while let Some(msg) = read.next().await {
+                let data = msg.unwrap().into_data();
+                io::stdout().write_all(&data).unwrap();
+            }
         });
 
         let res = Self {
-            send: tx,
+            sender: tx,
             credentials,
-            nonce: 1,
+            nonce: 1 
         };
-        
-        let handle = tokio::spawn(async {
-            while let Some(msg) = read.next().await {
-                let data = msg.unwrap().into_data();
-                Stdout.write_all(&data).await.unwrap();
-            }
-        });
         
 
         info!(target = "equity-client", "URL is: {:?}", url);
@@ -131,10 +128,10 @@ impl EquityClient {
             keys_values.insert(o, p);
         }
 
-        Body {
+        TransactionBody::SetValues {
             public_key: self.credentials.public_key,
             nonce: self.nonce,
-            keys_values,
+            keys_values
         }
     }
 
@@ -143,20 +140,18 @@ impl EquityClient {
 
         let (digest_string, signature) = self.credentials.hash_sign(&message_string);
 
-        FullMessage {
+        ClientCommand::Transaction {
             body: message.clone(),
             hash: digest_string,
             signature,
         }
     }
 
-    pub async fn post_transaction(
+    pub async fn send_transaction(
         &self,
-        transaction: FullMessage,
-    ) -> crate::Result<PostTransactionResponse> {
-        let mut url = self.surf_url.clone();
-        url.set_path(&self.url_transaction);
-        serde_post(&url.join(&transaction.hash)?, transaction).await
+        transaction: ClientCommand,
+    ) {
+      self.sender.send(transaction);  
     }
 }
 
