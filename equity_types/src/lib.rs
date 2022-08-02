@@ -111,7 +111,8 @@ impl Credentials {
     }
 }
 
-enum ClientCommand {
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub enum ClientCommand {
     Health {
     },
     Transaction {
@@ -121,7 +122,8 @@ enum ClientCommand {
     },
 }
 
-enum TransactionBody {
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub enum TransactionBody {
     SetValues {
         public_key: VerificationKey,
         nonce: u64,

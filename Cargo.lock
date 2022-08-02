@@ -730,6 +730,7 @@ dependencies = [
  "clap",
  "ed25519-consensus",
  "equity_types",
+ "futures",
  "rand 0.8.5",
  "rand_core 0.5.1",
  "rand_xoshiro",

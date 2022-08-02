@@ -19,6 +19,7 @@ borsh = "0.9"
 bytemuck = { version = "1.9", default-features = false }
 clap = { version = "3.2", features = ["derive"] }
 ed25519-consensus = "2"
+futures = "0.3"
 # All the ed25519 crates have a problem with old rand_core versions, and I would unfortunately have
 # to fork a lot of stuff if I wanted to fix it myself
 old_rand_core = { package = "rand_core", version = "0.5", default-features = false }

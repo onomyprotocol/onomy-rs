@@ -5,17 +5,20 @@ use std::{
     time::{Duration, Instant},
 };
 
+use futures::{SinkExt, StreamExt};
+
+use serde_json;
+
 use tokio_tungstenite::{connect_async, tungstenite::Message, WebSocketStream};
 
 use tokio::{
     net::{TcpListener, TcpStream},
-    sync::mpsc::channel,
+    sync::mpsc::{Sender, channel},
     task::JoinHandle,
 };
 
 use equity_types::{
-    Body, Credentials, EquityAddressResponse, FullMessage, HealthResponse, PostTransactionResponse,
-};
+    Credentials, ClientCommand};
 
 
 use rand::Rng;
@@ -23,7 +26,7 @@ use serde::de::DeserializeOwned;
 
 use tokio::{
     time::sleep,
-    io::stdout
+    io::Stdout
 };
 
 use tokio_stream::wrappers::ReceiverStream;
@@ -33,19 +36,20 @@ use tracing::info;
 use crate::Error;
 
 pub struct EquityClient {
-    send: Sender,
+    send: Sender<ClientCommand>,
     credentials: Credentials,
     nonce: u64,
+    handle: JoinHandle<()>
 }
 
 impl EquityClient {
-    pub fn new(url: &str) -> Result<Self, Error> {
+    pub async fn new(url: &str) -> Result<Self, Error> {
         
-        let (mut ws_stream, _) = connect_async(url)
+        let (mut ws_stream, _) = connect_async(seed_address)
         .await
         .expect("Failed to connect");
 
-        println!("WebSocket handshake has been successfully completed");
+        println!("WebSocket connection established: {}", url);
 
         let (write, read) = ws_stream.split();
 
@@ -55,7 +59,12 @@ impl EquityClient {
         let (tx, rx) = channel(1000);
         let rx = ReceiverStream::new(rx);
 
-        tokio::spawn(rx.map(Ok).forward(write));
+        tokio::spawn({
+            rx.map(Ok).then(
+                |Ok(msg)| async move { 
+                    serde_json::to_vec(msg)
+            }).map(Ok).forward(write)
+        });
 
         let res = Self {
             send: tx,
@@ -63,12 +72,12 @@ impl EquityClient {
             nonce: 1,
         };
         
-        tokio::spawn(
+        let handle = tokio::spawn(async {
             while let Some(msg) = read.next().await {
                 let data = msg.unwrap().into_data();
-                stdout().write_all(&data).await.unwrap();
+                Stdout.write_all(&data).await.unwrap();
             }
-        );
+        });
         
 
         info!(target = "equity-client", "URL is: {:?}", url);
