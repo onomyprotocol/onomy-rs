@@ -110,3 +110,21 @@ impl Credentials {
         (digest_string, signature)
     }
 }
+
+enum ClientCommand {
+    Health {
+    },
+    Transaction {
+        body: TransactionBody,
+        hash: String,
+        signature: Signature,
+    },
+}
+
+enum TransactionBody {
+    SetValues {
+        public_key: VerificationKey,
+        nonce: u64,
+        keys_values: BTreeMap<u64, u64>,
+    }
+}
