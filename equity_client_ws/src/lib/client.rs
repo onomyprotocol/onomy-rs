@@ -1,8 +1,6 @@
 use std::{
     collections::BTreeMap,
-    io::{self, Write},
-    str::FromStr,
-    time::{Duration, Instant},
+    io::{self, Write}
 };
 
 use futures::{SinkExt, StreamExt};
@@ -15,14 +13,7 @@ use tokio::sync::mpsc::{Sender, channel};
 
 use equity_types::{Credentials, ClientCommand, TransactionBody};
 
-
 use rand::Rng;
-use serde::de::DeserializeOwned;
-
-use tokio::{
-    time::sleep,
-    io::Stdout
-};
 
 use tokio_stream::wrappers::ReceiverStream;
 
@@ -52,14 +43,16 @@ impl EquityClient {
         // Insert the write part of this peer to the peer map.
         let (tx, rx) = channel::<ClientCommand>(1000);
         
-        let rx = ReceiverStream::new(rx);
+        let mut rx = ReceiverStream::new(rx);
 
         tokio::spawn(async move {
             while let Some(msg) = rx.next().await {
-                write.send(
+                if let Err(e) = write.send(
                     Message::binary(
                         serde_json::to_vec(&msg).expect("msg does not have serde serialize trait"))
-                    );
+                    ).await {
+                        println!("{:?}", e);
+                    }
             }
         });
         
@@ -85,43 +78,17 @@ impl EquityClient {
         self.nonce += 1;
     }
 
-    /// Waits until the client successfully gets a healthy response
-    pub async fn wait_for_healthy(&self, timeout: Duration) -> crate::Result<()> {
-        let end = Instant::now() + timeout;
-        while Instant::now() < end {
-            if let Ok(response) = ws.send(&self.surf_url.join(&self.url_health)?)
-                .recv_bytes()
-                .await
-            {
-                let health: HealthResponse = BorshDeserialize::try_from_slice(&response)
-                    .map_err(|e| Error::BorshDeserializeError(e, response))?;
-                if health.up {
-                    return Ok(())
-                }
-            }
-            sleep(Duration::from_millis(500)).await
-        }
-        Err(Error::StdIoError(io::Error::from(io::ErrorKind::TimedOut)))
+    pub async fn health(&self) {
+        
     }
 
-    pub async fn health(&self) -> crate::Result<HealthResponse> {
-        borsh_get(&self.surf_url.join(&self.url_health)?).await
-    }
 
-    pub async fn get_account_details(&self, address: &str) -> crate::Result<EquityAddressResponse> {
-        borsh_get(
-            &self
-                .surf_url
-                .join(&format!("{}{}", self.url_address, address))?,
-        )
-        .await
-    }
-
-    pub fn test_transaction(&self, key_domain: &u64, value_range: &u64, iterations: &u8) -> Body {
+    pub fn test_transaction(&self, key_domain: &u64, value_range: &u64, iterations: &u8) -> TransactionBody {
         let mut rng = rand::thread_rng();
 
         // BTreeMap needed as keys are sorted vs HashMap
         let mut keys_values = BTreeMap::new();
+
         for _i in 0..*iterations {
             let o: u64 = rng.gen_range(0..*key_domain);
             let p: u64 = rng.gen_range(0..*value_range);
@@ -135,7 +102,7 @@ impl EquityClient {
         }
     }
 
-    pub fn create_transaction(&self, message: &Body) -> FullMessage {
+    pub fn create_transaction(&self, message: &TransactionBody) -> ClientCommand {
         let message_string = serde_json::to_string(message).unwrap();
 
         let (digest_string, signature) = self.credentials.hash_sign(&message_string);
@@ -151,26 +118,6 @@ impl EquityClient {
         &self,
         transaction: ClientCommand,
     ) {
-      self.sender.send(transaction);  
-    }
-}
-
-impl FromStr for EquityClient {
-    type Err = Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::new(s)
-    }
-}
-
-impl<S> From<S> for EquityClient
-where
-    S: Into<std::net::SocketAddr>,
-{
-    fn from(socket: S) -> Self {
-        format!("http://{}", socket.into())
-            .as_str()
-            .parse()
-            .unwrap()
+      self.sender.send(transaction).await.expect("Channel failed");  
     }
 }
