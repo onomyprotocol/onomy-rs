@@ -5,42 +5,73 @@ use std::{
     time::{Duration, Instant},
 };
 
+use tokio_tungstenite::{connect_async, tungstenite::Message, WebSocketStream};
+
+use tokio::{
+    net::{TcpListener, TcpStream},
+    sync::mpsc::channel,
+    task::JoinHandle,
+};
+
 use equity_types::{
     Body, Credentials, EquityAddressResponse, FullMessage, HealthResponse, PostTransactionResponse,
 };
+
+
 use rand::Rng;
 use serde::de::DeserializeOwned;
-use surf::Url;
-use tokio::time::sleep;
+
+use tokio::{
+    time::sleep,
+    io::stdout
+};
+
+use tokio_stream::wrappers::ReceiverStream;
+
 use tracing::info;
 
 use crate::Error;
 
 pub struct EquityClient {
-    surf_url: Url,
-    url_health: String,
-    url_transaction: String,
-    url_address: String,
+    send: Sender,
     credentials: Credentials,
     nonce: u64,
 }
 
-
-
 impl EquityClient {
     pub fn new(url: &str) -> Result<Self, Error> {
-        let s_url = Url::from_str(url)?;
+        
+        let (mut ws_stream, _) = connect_async(url)
+        .await
+        .expect("Failed to connect");
+
+        println!("WebSocket handshake has been successfully completed");
+
+        let (write, read) = ws_stream.split();
+
         let credentials = Credentials::new();
 
+        // Insert the write part of this peer to the peer map.
+        let (tx, rx) = channel(1000);
+        let rx = ReceiverStream::new(rx);
+
+        tokio::spawn(rx.map(Ok).forward(write));
+
         let res = Self {
-            surf_url: s_url,
-            url_health: "health".to_owned(),
-            url_transaction: "transaction/".to_owned(),
-            url_address: "address/".to_owned(),
+            send: tx,
             credentials,
             nonce: 1,
         };
-        info!(target = "equity-client", "URL is: {:?}", res.surf_url);
+        
+        tokio::spawn(
+            while let Some(msg) = read.next().await {
+                let data = msg.unwrap().into_data();
+                stdout().write_all(&data).await.unwrap();
+            }
+        );
+        
+
+        info!(target = "equity-client", "URL is: {:?}", url);
         Ok(res)
     }
 
@@ -52,7 +83,7 @@ impl EquityClient {
     pub async fn wait_for_healthy(&self, timeout: Duration) -> crate::Result<()> {
         let end = Instant::now() + timeout;
         while Instant::now() < end {
-            if let Ok(response) = surf::get(&self.surf_url.join(&self.url_health)?)
+            if let Ok(response) = ws.send(&self.surf_url.join(&self.url_health)?)
                 .recv_bytes()
                 .await
             {

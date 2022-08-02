@@ -722,6 +722,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "equity_client_ws"
+version = "0.1.0"
+dependencies = [
+ "borsh",
+ "bytemuck",
+ "clap",
+ "ed25519-consensus",
+ "equity_types",
+ "rand 0.8.5",
+ "rand_core 0.5.1",
+ "rand_xoshiro",
+ "serde",
+ "serde_json",
+ "sha2 0.10.2",
+ "thiserror",
+ "tokio",
+ "tokio-stream",
+ "tokio-tungstenite",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "equity_consensus"
 version = "0.1.0"
 dependencies = [

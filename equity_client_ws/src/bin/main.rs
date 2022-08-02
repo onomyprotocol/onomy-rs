@@ -1,5 +1,5 @@
 use clap::Parser;
-use equity_client::EquityClient;
+use equity_client_ws::EquityClient;
 use tracing::{error, info};
 
 #[derive(Parser)]
@@ -17,10 +17,7 @@ struct CliArgs {
 }
 
 #[derive(Parser)]
-enum Command {
-    Account {
-        address: String,
-    },
+enum CliCommand {
     Health,
     Transaction {
         key_domain: u64,
@@ -36,15 +33,11 @@ pub async fn main() {
 
     let mut client = EquityClient::new(&args.endpoint).unwrap();
     match &args.command {
-        Command::Account { address } => match client.get_account_details(address).await {
-            Ok(response) => info!("{:?}", response),
-            Err(e) => error!("{:?}", e),
-        },
-        Command::Health => {
+        CliCommand::Health => {
             let response = client.health().await.unwrap();
             info!("Health Response is: {:?}", response);
         }
-        Command::Transaction {
+        CliCommand::Transaction {
             key_domain,
             value_range,
             iterations,
