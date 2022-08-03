@@ -2,7 +2,7 @@
 pub enum Error {
     #[error("StdIoError")]
     StdIoError(std::io::Error),
-    #[error("BorshDeserializeError")]
+    #[error("SerdeDeserializeError")]
     SerdeDeserializeError(serde_json::Error, Vec<u8>),
 }
 

@@ -1,19 +1,19 @@
 use clap::Parser;
 use equity_client_ws::EquityClient;
-use tracing::{error, info};
+use tracing::{info};
 
 #[derive(Parser)]
 #[clap(name = "equity_cli", about = "Equity", version)]
 struct CliArgs {
     #[clap(
         name = "endpoint",
-        default_value = "http://localhost:4040",
+        default_value = "ws://localhost:4040",
         long = "endpoint"
     )]
     endpoint: String,
 
     #[clap(subcommand)]
-    command: Command,
+    command: CliCommand,
 }
 
 #[derive(Parser)]
@@ -31,10 +31,10 @@ pub async fn main() {
     let args = CliArgs::parse();
     initialize_logger();
 
-    let mut client = EquityClient::new(&args.endpoint).unwrap();
+    let mut client = EquityClient::new(&args.endpoint).await.unwrap();
     match &args.command {
         CliCommand::Health => {
-            let response = client.health().await.unwrap();
+            let response = client.health().await;
             info!("Health Response is: {:?}", response);
         }
         CliCommand::Transaction {
@@ -48,8 +48,8 @@ pub async fn main() {
             client.noncer();
             let tester = client.test_transaction(key_domain, value_range, iterations);
             let transaction = client.create_transaction(&tester);
-            let response = client.post_transaction(transaction).await.unwrap();
-            info!("Transaction Response is: {:?}", response);
+            client.send_transaction(transaction).await;
+            info!("Transaction submitted");
         }
     }
 }
