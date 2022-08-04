@@ -1,5 +1,5 @@
 use std::{
-    net::{SocketAddr, TcpListener},
+    net::SocketAddr,
     sync::Arc,
 };
 
@@ -11,13 +11,20 @@ use equity_types::{
     PostTransactionResponse, ClientCommand
 };
 use equity_p2p::PeerMap;
+use futures::{SinkExt, StreamExt};
 use hyper::StatusCode;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha512};
-use tokio::task::{spawn_blocking, JoinHandle};
+use tokio::{
+    net::{TcpListener, TcpStream},
+    sync::mpsc::{channel, Sender},
+    task::{spawn_blocking, JoinHandle}
+};
+use tokio_stream::wrappers::ReceiverStream;
+use tokio_tungstenite::{connect_async, tungstenite::Message};
 use tracing::info;
 
-use crate::{borsh::Borsh, Error};
+use crate::{Error};
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Peer {
@@ -28,8 +35,8 @@ pub struct Peer {
 pub async fn start_api_server(
     api_listener: SocketAddr,
     db: EquityDatabase,
-    _peers: PeerMap,
-    _credentials: Arc<Credentials>,
+    peers: PeerMap,
+    credentials: Arc<Credentials>,
 ) -> Result<(SocketAddr, JoinHandle<Result<(), EquityError>>), Error> {
     
     let try_socket = TcpListener::bind(&api_listener).await;
@@ -85,35 +92,31 @@ async fn handle_connection(
     tokio::spawn(rx.map(Ok).forward(write));
 
     while let Some(Ok(msg)) = read.next().await {
-        tx = tx.clone();
-        
-        tokio::spawn(switch());
+        let tx_clone = tx.clone();
+        let command: ClientCommand = serde_json::from_slice(&msg.into_data()).unwrap();
+        tokio::spawn(client_switch(command, tx_clone));
     }
 }
 
-async fn switch(client_command: ClientCommand) {
+async fn client_switch(client_command: ClientCommand, sender: Sender<Message>) {
     match client_command {
-        BrbMsg::Init { } => {
+        ClientCommand::Health { } => {
             
-        }
-        BrbMsg::Echo { } => {
-            
-        }
-        BrbMsg::Ready { } => {
+        },
+        ClientCommand::Transaction{ body, hash, signature } => {
             
         }
     }
 }
 
-async fn health() -> Borsh<HealthResponse> {
+async fn health() -> HealthResponse {
     info!(target = "equity-core", "Health API");
     HealthResponse { up: true }
 }
 
 async fn transaction(
-    Json(payload): Json<FullMessage>,
-    Extension(state): Extension<EquityDatabase>,
-) -> Result<Json<PostTransactionResponse>, StatusCode> {
+    
+) -> PostTransactionResponse {
     info!(target = "equity-core", "Transaction API");
 
     // Check database if Mapping [hash -> tx_record] exists
