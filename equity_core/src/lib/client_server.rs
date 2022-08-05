@@ -4,11 +4,11 @@ use std::{
 };
 
 
-use ed25519_consensus::VerificationKey;
+use ed25519_consensus::{Signature, VerificationKey};
 use equity_storage::EquityDatabase;
 use equity_types::{
     Credentials, EquityAddressResponse, EquityError, FullMessage, HealthResponse,
-    PostTransactionResponse, ClientCommand
+    PostTransactionResponse, ClientCommand, TransactionBody
 };
 use equity_p2p::PeerMap;
 use futures::{SinkExt, StreamExt};
@@ -130,24 +130,25 @@ async fn health() -> HealthResponse {
 }
 
 async fn transaction(
-    
+    db: EquityDatabase,
+    body: TransactionBody,
+    hash: String,
+    signature: Signature
 ) -> PostTransactionResponse {
     info!(target = "equity-core", "Transaction API");
 
     // Check database if Mapping [hash -> tx_record] exists
     // If value exists revert transaction
 
-    if let Ok(Some(_value)) = state.get::ClientCommand::TransactionBody(payload.hash.as_bytes()) {
-        return Ok(Json(PostTransactionResponse {
+    if let Ok(Some(_value)) = db.get(hash.as_bytes()) {
+        return PostTransactionResponse {
             success: false,
             msg: "Revert: TX already exists".to_string(),
-        }))
+        }
     };
 
     // Verify signature
     // If signature is not verified then revert transaction
-
-    let payload_verify = payload.clone();
 
     if let Ok(Err(e)) = spawn_blocking(move || verify_body(payload_verify)).await {
         return Ok(Json(PostTransactionResponse {
@@ -173,7 +174,7 @@ async fn transaction(
     }))
 }
 
-fn verify_body(payload: FullMessage) -> Result<(), ed25519_consensus::Error> {
+fn verify_body(body: &TransactionBody, hash: &String, signature: &Signature) -> Result<(), ed25519_consensus::Error> {
     let mut digest: Sha512 = Sha512::new();
 
     digest.update(serde_json::to_string(&payload.body).unwrap());
