@@ -24,7 +24,7 @@ use tokio_stream::wrappers::ReceiverStream;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 use tracing::info;
 
-use crate::{Error};
+use crate::Error;
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Peer {
@@ -57,6 +57,7 @@ pub async fn start_api_server(
                 addr,
                 peers.clone(),
                 credentials.clone(),
+                db.clone()
             ));
         }
         Ok(())
@@ -74,6 +75,7 @@ async fn handle_connection(
     addr: SocketAddr,
     peers: PeerMap,
     credentials: Arc<Credentials>,
+    db: EquityDatabase
 ) {
     println!("Incoming TCP connection from: {}", addr);
 
@@ -94,11 +96,24 @@ async fn handle_connection(
     while let Some(Ok(msg)) = read.next().await {
         let tx_clone = tx.clone();
         let command: ClientCommand = serde_json::from_slice(&msg.into_data()).unwrap();
-        tokio::spawn(client_switch(command, tx_clone));
+        tokio::spawn(
+            client_switch(
+                command, 
+                tx_clone, 
+                peers.clone(), 
+                credentials.clone(), 
+                db.clone()
+        ));
     }
 }
 
-async fn client_switch(client_command: ClientCommand, sender: Sender<Message>) {
+async fn client_switch(
+    client_command: ClientCommand, 
+    sender: Sender<Message>,
+    peers: PeerMap,
+    credentials: Arc<Credentials>,
+    db: EquityDatabase
+) {
     match client_command {
         ClientCommand::Health { } => {
             
@@ -122,7 +137,7 @@ async fn transaction(
     // Check database if Mapping [hash -> tx_record] exists
     // If value exists revert transaction
 
-    if let Ok(Some(_value)) = state.get::<FullMessage>(payload.hash.as_bytes()) {
+    if let Ok(Some(_value)) = state.get::ClientCommand::TransactionBody(payload.hash.as_bytes()) {
         return Ok(Json(PostTransactionResponse {
             success: false,
             msg: "Revert: TX already exists".to_string(),
