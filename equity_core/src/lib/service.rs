@@ -11,7 +11,7 @@ use futures::future::join_all;
 use tokio::task::JoinHandle;
 use equity_p2p::PeerMap;
 
-use crate::{api_server::start_api_server, p2p_server::start_p2p_server, Error};
+use crate::{client_server::start_client_server, p2p_server::start_p2p_server, Error};
 
 pub struct EquityService {
     pub api_address: std::net::SocketAddr,
@@ -32,7 +32,7 @@ impl EquityService {
         let brb = Brb::new();
 
         let (api_address, api_server_handle) =
-            start_api_server(api_listener, db.clone(), peers.clone(), credentials.clone()).await?;
+            start_client_server(api_listener, db.clone(), peers.clone(), credentials.clone()).await?;
         let (p2p_address, p2p_server_handle) = start_p2p_server(
             p2p_listener,
             seed_address,

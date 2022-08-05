@@ -32,7 +32,7 @@ pub struct Peer {
     public_key: VerificationKey,
 }
 
-pub async fn start_api_server(
+pub async fn start_client_server(
     api_listener: SocketAddr,
     db: EquityDatabase,
     peers: PeerMap,
@@ -45,7 +45,7 @@ pub async fn start_api_server(
 
     let (tx, rx) = tokio::sync::oneshot::channel();
     
-    info!(target: "equity-core", "Starting API Server");
+    info!(target: "equity-core", "Starting WS Client Server");
     let handle = tokio::spawn(async move {
         
         let _ = tx.send(());
@@ -65,7 +65,7 @@ pub async fn start_api_server(
 
     let _ = rx.await;
 
-    info!(target: "equity-core", "API Server started at: {}", bound_addr);
+    info!(target: "equity-core", "WS Client Server started at: {}", bound_addr);
 
     Ok((bound_addr, handle))
 }
@@ -116,15 +116,17 @@ async fn client_switch(
 ) {
     match client_command {
         ClientCommand::Health { } => {
-            
+            let response = health();
+            sender.send(Message::binary(serde_json::to_vec(&response).expect("msg does not have serde serialize trait")));
         },
         ClientCommand::Transaction{ body, hash, signature } => {
-            
+            let response = transaction(db, body, hash, signature);
+            sender.send(Message::binary(serde_json::to_vec(&response).expect("msg does not have serde serialize trait")));
         }
     }
 }
 
-async fn health() -> HealthResponse {
+fn health() -> HealthResponse {
     info!(target = "equity-core", "Health API");
     HealthResponse { up: true }
 }
@@ -150,7 +152,7 @@ async fn transaction(
     // Verify signature
     // If signature is not verified then revert transaction
 
-    if let Ok(Err(e)) = spawn_blocking(move || verify_body(payload_verify)).await {
+    if let Ok(Err(e)) = spawn_blocking(move || verify_body(&body, &hash, &signature)).await {
         return Ok(Json(PostTransactionResponse {
             success: false,
             msg: e.to_string(),
@@ -187,54 +189,6 @@ fn verify_body(body: &TransactionBody, hash: &String, signature: &Signature) -> 
         .verify(&payload.signature, digest_string.as_bytes())
 }
 
-// TODO should we use some binary instead of a path?
 
-async fn get_address(
-    Path(key): Path<String>,
-    Extension(state): Extension<EquityDatabase>,
-) -> Result<Borsh<EquityAddressResponse>, StatusCode> {
-    info!(
-        target = "equity-core",
-        "Get Address API: address is: `{}`", key
-    );
 
-    match state.get(key.as_bytes()) {
-        Ok(Some(value)) => {
-            let response = Borsh(EquityAddressResponse { owner: key, value });
-            Ok(response)
-        }
-        Ok(None) => {
-            info!("not found");
-            Err(StatusCode::NOT_FOUND)
-        }
-        Err(e) => {
-            info!("error: {}", e);
-            Err(StatusCode::NOT_FOUND)
-        }
-    }
-}
 
-async fn set_address(
-    Path(key): Path<String>,
-    Extension(state): Extension<EquityDatabase>,
-) -> Result<Borsh<EquityAddressResponse>, StatusCode> {
-    info!(
-        target = "equity-core",
-        "Get Address API: address is: `{}`", key
-    );
-
-    match state.get(key.as_bytes()) {
-        Ok(Some(value)) => {
-            let response = Borsh(EquityAddressResponse { owner: key, value });
-            Ok(response)
-        }
-        Ok(None) => {
-            info!("not found");
-            Err(StatusCode::NOT_FOUND)
-        }
-        Err(e) => {
-            info!("error: {}", e);
-            Err(StatusCode::NOT_FOUND)
-        }
-    }
-}
