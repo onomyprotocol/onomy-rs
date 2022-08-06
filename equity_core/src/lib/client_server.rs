@@ -7,12 +7,11 @@ use std::{
 use ed25519_consensus::{Signature, VerificationKey};
 use equity_storage::EquityDatabase;
 use equity_types::{
-    Credentials, EquityAddressResponse, EquityError, FullMessage, HealthResponse,
-    PostTransactionResponse, ClientCommand, TransactionBody
+    Credentials, EquityError, HealthResponse,
+    PostTransactionResponse, ClientCommand, TransactionBody, TransactionBody::SetValues
 };
 use equity_p2p::PeerMap;
 use futures::{SinkExt, StreamExt};
-use hyper::StatusCode;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha512};
 use tokio::{
@@ -21,7 +20,7 @@ use tokio::{
     task::{spawn_blocking, JoinHandle}
 };
 use tokio_stream::wrappers::ReceiverStream;
-use tokio_tungstenite::{connect_async, tungstenite::Message};
+use tokio_tungstenite::tungstenite::Message;
 use tracing::info;
 
 use crate::Error;
@@ -110,18 +109,18 @@ async fn handle_connection(
 async fn client_switch(
     client_command: ClientCommand, 
     sender: Sender<Message>,
-    peers: PeerMap,
-    credentials: Arc<Credentials>,
+    _peers: PeerMap,
+    _credentials: Arc<Credentials>,
     db: EquityDatabase
 ) {
     match client_command {
         ClientCommand::Health { } => {
             let response = health();
-            sender.send(Message::binary(serde_json::to_vec(&response).expect("msg does not have serde serialize trait")));
+            sender.send(Message::binary(serde_json::to_vec(&response).expect("msg does not have serde serialize trait"))).await.unwrap();
         },
         ClientCommand::Transaction{ body, hash, signature } => {
-            let response = transaction(db, body, hash, signature);
-            sender.send(Message::binary(serde_json::to_vec(&response).expect("msg does not have serde serialize trait")));
+            let response = transaction(db, body, hash, signature).await;
+            sender.send(Message::binary(serde_json::to_vec(&response).expect("msg does not have serde serialize trait"))).await.unwrap();
         }
     }
 }
@@ -142,7 +141,7 @@ async fn transaction(
     // Check database if Mapping [hash -> tx_record] exists
     // If value exists revert transaction
 
-    if let Ok(Some(_value)) = db.get(hash.as_bytes()) {
+    if let Ok(Some(_value)) = db.get::<TransactionBody>(&hash.as_bytes()) {
         return PostTransactionResponse {
             success: false,
             msg: "Revert: TX already exists".to_string(),
@@ -151,42 +150,43 @@ async fn transaction(
 
     // Verify signature
     // If signature is not verified then revert transaction
+    let body_verify = body.clone();
+    let hash_verify = hash.clone();
+    let signature_verify = signature.clone();
 
-    if let Ok(Err(e)) = spawn_blocking(move || verify_body(&body, &hash, &signature)).await {
-        return Ok(Json(PostTransactionResponse {
+    if let Ok(Err(e)) = spawn_blocking(move || verify_body(&body_verify, &hash_verify, &signature_verify)).await {
+        return PostTransactionResponse {
             success: false,
             msg: e.to_string(),
-        }))
+        }
     }
 
     // Post transaction record to db
-    let payload_entry = payload.clone();
-    // let payload_hash = payload.hash;
 
-    if let Ok(None) = state.set(&payload.hash, payload_entry) {
-        return Ok(Json(PostTransactionResponse {
+    if let Ok(None) = db.set(&hash, body) {
+        return PostTransactionResponse {
             success: true,
             msg: "Transaction entry recorded to db".to_string(),
-        }))
+        }
     };
 
-    Ok(Json(PostTransactionResponse {
+    PostTransactionResponse {
         success: false,
         msg: "Transaction not recorded to db".to_string(),
-    }))
+    }
 }
 
 fn verify_body(body: &TransactionBody, hash: &String, signature: &Signature) -> Result<(), ed25519_consensus::Error> {
     let mut digest: Sha512 = Sha512::new();
 
-    digest.update(serde_json::to_string(&payload.body).unwrap());
+    digest.update(serde_json::to_string(&body).unwrap());
 
     let digest_string: String = format!("{:X}", digest.clone().finalize());
 
-    payload
-        .body
-        .public_key
-        .verify(&payload.signature, digest_string.as_bytes())
+    match body {
+        SetValues { public_key, nonce: _, keys_values: _ } => 
+        public_key.verify(signature, digest_string.as_bytes())
+    }
 }
 
 

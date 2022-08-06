@@ -59,7 +59,8 @@ impl EquityClient {
         tokio::spawn(async move {
             while let Some(msg) = read.next().await {
                 let data = msg.unwrap().into_data();
-                io::stdout().write_all(&data).unwrap();
+                let v: serde_json::Value = serde_json::from_slice(&data).unwrap();
+                println!("{:?}", v);
             }
         });
 
