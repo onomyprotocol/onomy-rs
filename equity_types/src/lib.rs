@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha512};
 use equity_p2p::PeerMap;
 use equity_storage::EquityDatabase;
+use equity_consensus::Brb;
 
 // TODO common derive macro
 
@@ -106,6 +107,18 @@ impl Credentials {
 
         (digest_string, signature)
     }
+
+    pub fn create_transaction(&self, message: &TransactionBody) -> ClientCommand {
+        let message_string = serde_json::to_string(message).unwrap();
+    
+        let (digest_string, signature) = self.hash_sign(&message_string);
+    
+        ClientCommand::Transaction {
+            body: message.clone(),
+            hash: digest_string,
+            signature,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -126,7 +139,7 @@ pub enum TransactionBody {
         nonce: u64,
         keys_values: BTreeMap<u64, u64>,
     },
-    BondValidator {
+    SetValidator {
         public_key: VerificationKey,
         nonce: u64,
         ws: SocketAddr
@@ -137,5 +150,6 @@ pub enum TransactionBody {
 pub struct Context {
     pub peers: PeerMap,
     pub db: EquityDatabase,
-    pub credentials: Arc<Credentials>
+    pub credentials: Arc<Credentials>,
+    pub brb: Brb
 }

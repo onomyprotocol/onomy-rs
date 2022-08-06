@@ -1,8 +1,7 @@
-use std::{collections::HashMap, net::SocketAddr, sync::Arc};
+use std::{collections::HashMap, net::SocketAddr};
 
 use ed25519_consensus::{Signature, VerificationKey};
-use equity_storage::EquityDatabase;
-use equity_types::{Context, Credentials, EquityError};
+use equity_types::{Context, Credentials, EquityError, TransactionBody};
 use futures::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use tokio::{
@@ -13,8 +12,7 @@ use tokio::{
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 use tracing::info;
-use equity_consensus::Brb;
-use equity_p2p::{Peer, PeerMap};
+use equity_p2p::Peer;
 
 use crate::Error;
 
@@ -43,8 +41,7 @@ pub struct InitResponse {
 pub async fn start_p2p_server(
     p2p_listener: SocketAddr,
     seed_address: SocketAddr,
-    context: Context,
-    _brb: Brb
+    context: Context
 ) -> Result<(SocketAddr, JoinHandle<Result<(), EquityError>>), Error> {
     if seed_address.to_string() != *"0.0.0.0:0" {
         let mut seed_address_ws = "ws://".to_string();
@@ -56,7 +53,7 @@ pub async fn start_p2p_server(
         initialize_network(
             &seed_address_ws,
             context.clone(),
-            &p2p_address_ws,
+            p2p_listener,
         )
         .await;
     }
@@ -167,7 +164,7 @@ async fn handle_connection(
 async fn initialize_network(
     seed_address: &String,
     context: Context,
-    listener: &str,
+    p2p_listener: SocketAddr,
 ) {
     let (mut ws_stream, _) = connect_async(seed_address)
         .await
@@ -176,7 +173,7 @@ async fn initialize_network(
     println!("WebSocket handshake has been successfully completed");
 
     ws_stream
-        .send(initial_message(&context.credentials, listener))
+        .send(initial_message(&context.credentials, p2p_listener))
         .await
         .unwrap();
 
@@ -215,25 +212,17 @@ async fn initialize_network(
     }
 }
 
-pub fn initial_message(credentials: &Credentials, listener: &str) -> Message {
-    let initiate: Initiate = Initiate {
+pub fn initial_message(credentials: &Credentials, p2p_listener: SocketAddr) -> Message {
+    let transaction_body = TransactionBody::SetValidator {
         public_key: credentials.public_key,
         nonce: credentials.nonce,
+        ws: p2p_listener
     };
 
-    let message_string = serde_json::to_string(&initiate).unwrap();
-
-    let (hash, signature) = credentials.hash_sign(&message_string);
-
-    let listener = listener.to_string();
+    let transaction = credentials.create_transaction(&transaction_body);
 
     Message::binary(
-        serde_json::to_vec(&InitMessage {
-            initiate,
-            listener,
-            hash,
-            signature,
-        })
+        serde_json::to_vec(&transaction)
         .unwrap(),
     )
 }

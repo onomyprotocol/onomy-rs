@@ -31,21 +31,21 @@ impl EquityService {
         let peers = PeerMap::new(Mutex::new(HashMap::new()));
         let credentials = Arc::new(Credentials::new());
 
+        let brb = Brb::new();
+
         let context = Context {
             peers,
             db,
-            credentials
+            credentials,
+            brb
         };
-
-        let brb = Brb::new();
 
         let (api_address, api_server_handle) =
             start_client_server(api_listener, context.clone()).await?;
         let (p2p_address, p2p_server_handle) = start_p2p_server(
             p2p_listener,
             seed_address,
-            context.clone(),
-            brb
+            context.clone()
         )
         .await?;
 

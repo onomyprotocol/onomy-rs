@@ -1,16 +1,11 @@
-use std::{
-    net::SocketAddr,
-    sync::Arc,
-};
+use std::net::SocketAddr;
 
 use ed25519_consensus::{Signature, VerificationKey};
-use equity_storage::EquityDatabase;
 use equity_types::{
-    Credentials, EquityError, Context, HealthResponse,
+    EquityError, Context, HealthResponse,
     PostTransactionResponse, ClientCommand, TransactionBody
 };
 
-use equity_p2p::PeerMap;
 use futures::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha512};
@@ -181,7 +176,7 @@ fn verify_body(body: &TransactionBody, _hash: &String, signature: &Signature) ->
         TransactionBody::SetValues { public_key, nonce: _, keys_values: _ } => {
             public_key.verify(signature, digest_string.as_bytes())
         }
-        TransactionBody::BondValidator { public_key, nonce: _, ws} => {
+        TransactionBody::SetValidator { public_key, nonce: _, ws} => {
             public_key.verify(signature, digest_string.as_bytes())
         }
     }

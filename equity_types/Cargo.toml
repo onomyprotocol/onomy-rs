@@ -7,6 +7,7 @@ publish = false
 # note: although there is a lot of message related stuff here, this crate should not depend on or
 # reexport runtime or TLS level stuff, only data and serialization
 [dependencies]
+equity_consensus = { path = "../equity_consensus"}
 equity_p2p = { path = "../equity_p2p"}
 equity_storage = { path = "../equity_storage" }
 
@@ -16,6 +17,7 @@ futures = "0.3"
 hyper = "0.14"
 rand = "0.8"
 serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
 sha2 = "0.10"
 thiserror = "1.0"
 tokio = { version = "1.19", features = ["full"] }
