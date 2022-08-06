@@ -19,7 +19,7 @@ async fn main() {
     let args = CliArgs::parse();
     match args.test_mode {
         mode @ (TestMode::Health | TestMode::GetResponse) => {
-            let client = EquityClient::new("http://equity_core:4040").unwrap();
+            let client = EquityClient::new("http://equity_core:4040");
             client.wait_for_healthy(TIMEOUT).await.unwrap();
             match mode {
                 TestMode::Health => {

@@ -1,26 +1,24 @@
 use clap::Parser;
 use equity_client::EquityClient;
-use tracing::{error, info};
+use tracing::{info};
+use std::{thread, time};
 
 #[derive(Parser)]
 #[clap(name = "equity_cli", about = "Equity", version)]
 struct CliArgs {
     #[clap(
         name = "endpoint",
-        default_value = "http://localhost:4040",
+        default_value = "ws://localhost:4040",
         long = "endpoint"
     )]
     endpoint: String,
 
     #[clap(subcommand)]
-    command: Command,
+    command: CliCommand,
 }
 
 #[derive(Parser)]
-enum Command {
-    Account {
-        address: String,
-    },
+enum CliCommand {
     Health,
     Transaction {
         key_domain: u64,
@@ -34,17 +32,13 @@ pub async fn main() {
     let args = CliArgs::parse();
     initialize_logger();
 
-    let mut client = EquityClient::new(&args.endpoint).unwrap();
+    let mut client = EquityClient::new(&args.endpoint).await.unwrap();
     match &args.command {
-        Command::Account { address } => match client.get_account_details(address).await {
-            Ok(response) => info!("{:?}", response),
-            Err(e) => error!("{:?}", e),
-        },
-        Command::Health => {
-            let response = client.health().await.unwrap();
+        CliCommand::Health => {
+            let response = client.health().await;
             info!("Health Response is: {:?}", response);
         }
-        Command::Transaction {
+        CliCommand::Transaction {
             key_domain,
             value_range,
             iterations,
@@ -55,8 +49,9 @@ pub async fn main() {
             client.noncer();
             let tester = client.test_transaction(key_domain, value_range, iterations);
             let transaction = client.create_transaction(&tester);
-            let response = client.post_transaction(transaction).await.unwrap();
-            info!("Transaction Response is: {:?}", response);
+            client.send_transaction(transaction).await;
+            thread::sleep(time::Duration::from_secs(5));
+            info!("Transaction submitted");
         }
     }
 }

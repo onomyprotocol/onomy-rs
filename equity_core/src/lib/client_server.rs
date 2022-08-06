@@ -3,13 +3,13 @@ use std::{
     sync::Arc,
 };
 
-
 use ed25519_consensus::{Signature, VerificationKey};
 use equity_storage::EquityDatabase;
 use equity_types::{
     Credentials, EquityError, HealthResponse,
-    PostTransactionResponse, ClientCommand, TransactionBody, TransactionBody::SetValues
+    PostTransactionResponse, ClientCommand, TransactionBody
 };
+
 use equity_p2p::PeerMap;
 use futures::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
@@ -19,6 +19,7 @@ use tokio::{
     sync::mpsc::{channel, Sender},
     task::{spawn_blocking, JoinHandle}
 };
+
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_tungstenite::tungstenite::Message;
 use tracing::info;
@@ -139,7 +140,7 @@ async fn transaction(
     info!(target = "equity-core", "Transaction API");
 
     // Check database if Mapping [hash -> tx_record] exists
-    // If value exists revert transaction
+    // If value exists revert transaction. There are no duplicates allowed
 
     if let Ok(Some(_value)) = db.get::<TransactionBody>(&hash.as_bytes()) {
         return PostTransactionResponse {
@@ -148,8 +149,10 @@ async fn transaction(
         }
     };
 
-    // Verify signature
-    // If signature is not verified then revert transaction
+    // Pre-Verify Transaction
+    // 1) Verify Signature
+    // 2) Verify Transaction Enabled by State
+    // If transaction is not verified then revert transaction
     let body_verify = body.clone();
     let hash_verify = hash.clone();
     let signature_verify = signature.clone();
@@ -176,7 +179,8 @@ async fn transaction(
     }
 }
 
-fn verify_body(body: &TransactionBody, hash: &String, signature: &Signature) -> Result<(), ed25519_consensus::Error> {
+// Pre-verification step - Signature and any other state-ful checks
+fn verify_body(body: &TransactionBody, _hash: &String, signature: &Signature) -> Result<(), ed25519_consensus::Error> {
     let mut digest: Sha512 = Sha512::new();
 
     digest.update(serde_json::to_string(&body).unwrap());
@@ -184,8 +188,12 @@ fn verify_body(body: &TransactionBody, hash: &String, signature: &Signature) -> 
     let digest_string: String = format!("{:X}", digest.clone().finalize());
 
     match body {
-        SetValues { public_key, nonce: _, keys_values: _ } => 
-        public_key.verify(signature, digest_string.as_bytes())
+        TransactionBody::SetValues { public_key, nonce: _, keys_values: _ } => {
+            public_key.verify(signature, digest_string.as_bytes())
+        }
+        TransactionBody::BondValidator { public_key, nonce: _, ws} => {
+            public_key.verify(signature, digest_string.as_bytes())
+        }
     }
 }
 

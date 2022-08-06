@@ -1,17 +1,18 @@
-use std::collections::BTreeMap;
-pub use borsh;
-use borsh::{BorshDeserialize, BorshSerialize};
+use std::{collections::BTreeMap, net::SocketAddr};
+
 use derive_alias::derive_alias;
 use ed25519_consensus::{Signature, SigningKey, VerificationKey};
 use rand::thread_rng;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha512};
+use equity_p2p::PeerMap;
+use equity_storage::EquityDatabase;
 
 // TODO common derive macro
 
 derive_alias! {
     derive_common => #[derive(Default, Clone, Debug, PartialEq, Eq, PartialOrd, Ord,
-        BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
+        Serialize, Deserialize)]
 }
 
 derive_common! {
@@ -124,5 +125,16 @@ pub enum TransactionBody {
         public_key: VerificationKey,
         nonce: u64,
         keys_values: BTreeMap<u64, u64>,
+    },
+    BondValidator {
+        public_key: VerificationKey,
+        nonce: u64,
+        ws: SocketAddr
     }
+}
+
+pub struct EquityContext {
+    pub peers: PeerMap,
+    pub db: EquityDatabase,
+    pub credentials: Credentials
 }
