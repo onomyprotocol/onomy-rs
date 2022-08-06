@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, net::SocketAddr};
+use std::{collections::BTreeMap, net::SocketAddr, sync::Arc};
 
 use derive_alias::derive_alias;
 use ed25519_consensus::{Signature, SigningKey, VerificationKey};
@@ -133,8 +133,9 @@ pub enum TransactionBody {
     }
 }
 
-pub struct EquityContext {
+
+pub struct Context {
     pub peers: PeerMap,
     pub db: EquityDatabase,
-    pub credentials: Credentials
+    pub credentials: Arc<Credentials>
 }

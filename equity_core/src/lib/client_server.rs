@@ -6,7 +6,7 @@ use std::{
 use ed25519_consensus::{Signature, VerificationKey};
 use equity_storage::EquityDatabase;
 use equity_types::{
-    Credentials, EquityError, HealthResponse,
+    Credentials, EquityError, Context, HealthResponse,
     PostTransactionResponse, ClientCommand, TransactionBody
 };
 
@@ -34,11 +34,9 @@ pub struct Peer {
 
 pub async fn start_client_server(
     api_listener: SocketAddr,
-    db: EquityDatabase,
-    peers: PeerMap,
-    credentials: Arc<Credentials>,
+    context: Arc<Context>
 ) -> Result<(SocketAddr, JoinHandle<Result<(), EquityError>>), Error> {
-    
+
     let try_socket = TcpListener::bind(&api_listener).await;
     let listener = try_socket.expect("Failed to bind");
     let bound_addr = listener.local_addr().unwrap();
@@ -55,9 +53,7 @@ pub async fn start_client_server(
             tokio::spawn(handle_connection(
                 stream,
                 addr,
-                peers.clone(),
-                credentials.clone(),
-                db.clone()
+                context.clone()
             ));
         }
         Ok(())
@@ -73,9 +69,7 @@ pub async fn start_client_server(
 async fn handle_connection(
     raw_stream: TcpStream,
     addr: SocketAddr,
-    peers: PeerMap,
-    credentials: Arc<Credentials>,
-    db: EquityDatabase
+    context: Arc<Context>
 ) {
     println!("Incoming TCP connection from: {}", addr);
 
@@ -100,9 +94,7 @@ async fn handle_connection(
             client_switch(
                 command, 
                 tx_clone, 
-                peers.clone(), 
-                credentials.clone(), 
-                db.clone()
+                context.clone()
         ));
     }
 }
@@ -110,9 +102,7 @@ async fn handle_connection(
 async fn client_switch(
     client_command: ClientCommand, 
     sender: Sender<Message>,
-    _peers: PeerMap,
-    _credentials: Arc<Credentials>,
-    db: EquityDatabase
+    context: Arc<Context>
 ) {
     match client_command {
         ClientCommand::Health { } => {
@@ -120,7 +110,7 @@ async fn client_switch(
             sender.send(Message::binary(serde_json::to_vec(&response).expect("msg does not have serde serialize trait"))).await.unwrap();
         },
         ClientCommand::Transaction{ body, hash, signature } => {
-            let response = transaction(db, body, hash, signature).await;
+            let response = transaction(context.db.clone(), body, hash, signature).await;
             sender.send(Message::binary(serde_json::to_vec(&response).expect("msg does not have serde serialize trait"))).await.unwrap();
         }
     }
