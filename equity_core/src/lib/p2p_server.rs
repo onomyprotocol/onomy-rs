@@ -2,7 +2,7 @@ use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 
 use ed25519_consensus::{Signature, VerificationKey};
 use equity_storage::EquityDatabase;
-use equity_types::{Credentials, EquityError};
+use equity_types::{Context, Credentials, EquityError};
 use futures::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use tokio::{
@@ -43,10 +43,8 @@ pub struct InitResponse {
 pub async fn start_p2p_server(
     p2p_listener: SocketAddr,
     seed_address: SocketAddr,
-    _db: EquityDatabase,
-    peers: PeerMap,
-    _brb: Brb,
-    credentials: Arc<Credentials>,
+    context: Context,
+    _brb: Brb
 ) -> Result<(SocketAddr, JoinHandle<Result<(), EquityError>>), Error> {
     if seed_address.to_string() != *"0.0.0.0:0" {
         let mut seed_address_ws = "ws://".to_string();
@@ -57,8 +55,7 @@ pub async fn start_p2p_server(
 
         initialize_network(
             &seed_address_ws,
-            peers.clone(),
-            &credentials,
+            context.clone(),
             &p2p_address_ws,
         )
         .await;
@@ -76,8 +73,7 @@ pub async fn start_p2p_server(
             tokio::spawn(handle_connection(
                 stream,
                 addr,
-                peers.clone(),
-                credentials.clone(),
+                context.clone()
             ));
         }
         Ok(())
@@ -91,8 +87,7 @@ pub async fn start_p2p_server(
 async fn handle_connection(
     raw_stream: TcpStream,
     addr: SocketAddr,
-    peers: PeerMap,
-    credentials: Arc<Credentials>,
+    context: Context
 ) {
     println!("Incoming TCP connection from: {}", addr);
 
@@ -122,7 +117,7 @@ async fn handle_connection(
         let mut peer_map: HashMap<String, VerificationKey> = HashMap::new();
 
         {
-            let mut peers = peers.lock().unwrap();
+            let mut peers = context.peers.lock().unwrap();
 
             let peers_iter = peers.iter();
 
@@ -144,11 +139,11 @@ async fn handle_connection(
 
         let peer_map_string = serde_json::to_string(&peer_map).unwrap();
 
-        let (peer_map_hash, peer_map_signature) = credentials.hash_sign(&peer_map_string);
+        let (peer_map_hash, peer_map_signature) = context.credentials.hash_sign(&peer_map_string);
 
         let init_response = InitResponse {
             peer_map,
-            public_key: credentials.public_key,
+            public_key: context.credentials.public_key,
             hash: peer_map_hash,
             signature: peer_map_signature,
         };
@@ -164,15 +159,14 @@ async fn handle_connection(
         println!("Received msg: {:?}", msg);
     }
 
-    let mut peers = peers.lock().unwrap();
+    let mut peers = context.peers.lock().unwrap();
 
     peers.remove(&listener);
 }
 
 async fn initialize_network(
     seed_address: &String,
-    peers: PeerMap,
-    credentials: &Credentials,
+    context: Context,
     listener: &str,
 ) {
     let (mut ws_stream, _) = connect_async(seed_address)
@@ -182,7 +176,7 @@ async fn initialize_network(
     println!("WebSocket handshake has been successfully completed");
 
     ws_stream
-        .send(initial_message(credentials, listener))
+        .send(initial_message(&context.credentials, listener))
         .await
         .unwrap();
 
@@ -204,7 +198,7 @@ async fn initialize_network(
 
         seed_peer_map = init_resp_msg.peer_map.clone();
 
-        let mut peers = peers.lock().unwrap();
+        let mut peers = context.peers.lock().unwrap();
 
         let peer_struct = Peer {
             send: tx.clone(),

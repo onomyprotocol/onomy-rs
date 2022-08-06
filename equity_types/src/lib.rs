@@ -133,7 +133,7 @@ pub enum TransactionBody {
     }
 }
 
-
+#[derive(Debug, Clone)]
 pub struct Context {
     pub peers: PeerMap,
     pub db: EquityDatabase,

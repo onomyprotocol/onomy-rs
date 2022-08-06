@@ -34,7 +34,7 @@ pub struct Peer {
 
 pub async fn start_client_server(
     api_listener: SocketAddr,
-    context: Arc<Context>
+    context: Context
 ) -> Result<(SocketAddr, JoinHandle<Result<(), EquityError>>), Error> {
 
     let try_socket = TcpListener::bind(&api_listener).await;
@@ -69,7 +69,7 @@ pub async fn start_client_server(
 async fn handle_connection(
     raw_stream: TcpStream,
     addr: SocketAddr,
-    context: Arc<Context>
+    context: Context
 ) {
     println!("Incoming TCP connection from: {}", addr);
 
@@ -102,7 +102,7 @@ async fn handle_connection(
 async fn client_switch(
     client_command: ClientCommand, 
     sender: Sender<Message>,
-    context: Arc<Context>
+    context: Context
 ) {
     match client_command {
         ClientCommand::Health { } => {
@@ -110,7 +110,7 @@ async fn client_switch(
             sender.send(Message::binary(serde_json::to_vec(&response).expect("msg does not have serde serialize trait"))).await.unwrap();
         },
         ClientCommand::Transaction{ body, hash, signature } => {
-            let response = transaction(context.db.clone(), body, hash, signature).await;
+            let response = transaction(context, body, hash, signature).await;
             sender.send(Message::binary(serde_json::to_vec(&response).expect("msg does not have serde serialize trait"))).await.unwrap();
         }
     }
@@ -122,7 +122,7 @@ fn health() -> HealthResponse {
 }
 
 async fn transaction(
-    db: EquityDatabase,
+    context: Context,
     body: TransactionBody,
     hash: String,
     signature: Signature
@@ -132,7 +132,7 @@ async fn transaction(
     // Check database if Mapping [hash -> tx_record] exists
     // If value exists revert transaction. There are no duplicates allowed
 
-    if let Ok(Some(_value)) = db.get::<TransactionBody>(&hash.as_bytes()) {
+    if let Ok(Some(_value)) = context.db.get::<TransactionBody>(&hash.as_bytes()) {
         return PostTransactionResponse {
             success: false,
             msg: "Revert: TX already exists".to_string(),
@@ -156,7 +156,7 @@ async fn transaction(
 
     // Post transaction record to db
 
-    if let Ok(None) = db.set(&hash, body) {
+    if let Ok(None) = context.db.set(&hash, body) {
         return PostTransactionResponse {
             success: true,
             msg: "Transaction entry recorded to db".to_string(),
