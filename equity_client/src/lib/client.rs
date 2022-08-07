@@ -8,7 +8,7 @@ use tokio_tungstenite::{connect_async, tungstenite::Message};
 
 use tokio::sync::mpsc::{Sender, channel};
 
-use equity_types::{Credentials, ClientCommand, TransactionBody};
+use equity_types::{Credentials, ClientCommand, TransactionBody, Keys};
 
 use rand::Rng;
 
@@ -25,8 +25,14 @@ pub struct EquityClient {
 }
 
 impl EquityClient {
-    pub async fn new(url: &str) -> Result<Self, Error> {
-        
+    pub async fn new(url: &str, keys: Keys) -> Result<Self, Error> {
+        let credentials;
+
+        match keys {
+            Keys::Empty => credentials = Credentials::new(),
+            Keys::Is(value) => credentials = value,
+        }
+
         let (ws_stream, _) = connect_async(url)
         .await
         .expect("Failed to connect");
@@ -34,8 +40,6 @@ impl EquityClient {
         println!("WebSocket connection established: {}", url);
 
         let (mut write, mut read) = ws_stream.split();
-
-        let credentials = Credentials::new();
 
         // Insert the write part of this peer to the peer map.
         let (tx, rx) = channel::<ClientCommand>(1000);

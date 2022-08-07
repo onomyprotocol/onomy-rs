@@ -121,6 +121,12 @@ impl Credentials {
     }
 }
 
+#[derive(Debug, Clone)]
+pub enum Keys {
+    Empty,
+    Is(Credentials)
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub enum ClientCommand {
     Health {

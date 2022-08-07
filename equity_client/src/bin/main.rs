@@ -32,7 +32,8 @@ pub async fn main() {
     let args = CliArgs::parse();
     initialize_logger();
 
-    let mut client = EquityClient::new(&args.endpoint).await.unwrap();
+    let mut client = EquityClient::new(&args.endpoint, Keys::Empty).await.unwrap();
+    
     match &args.command {
         CliCommand::Health => {
             let response = client.health().await;

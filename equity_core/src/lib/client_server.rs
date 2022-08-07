@@ -165,7 +165,7 @@ async fn transaction(
 }
 
 // Pre-verification step - Signature and any other state-ful checks
-fn verify_body(body: &TransactionBody, _hash: &String, signature: &Signature) -> Result<(), ed25519_consensus::Error> {
+fn verify_body(body: &TransactionBody, _hash: &String, signature: &Signature) -> Result<(), Error::Error> {
     let mut digest: Sha512 = Sha512::new();
 
     digest.update(serde_json::to_string(&body).unwrap());
@@ -178,6 +178,7 @@ fn verify_body(body: &TransactionBody, _hash: &String, signature: &Signature) ->
         }
         TransactionBody::SetValidator { public_key, nonce: _, ws} => {
             public_key.verify(signature, digest_string.as_bytes())
+
         }
     }
 }

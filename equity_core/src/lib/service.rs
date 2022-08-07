@@ -6,10 +6,11 @@ use std::{
 
 use equity_storage::EquityDatabase;
 use equity_consensus::Brb;
-use equity_types::{Credentials, EquityError, Context};
+use equity_types::{EquityError, Context};
 use futures::future::join_all;
 use tokio::task::JoinHandle;
 use equity_p2p::PeerMap;
+use equity_client::EquityClient;
 
 use crate::{client_server::start_client_server, p2p_server::start_p2p_server, Error};
 
@@ -29,13 +30,17 @@ impl EquityService {
         db: EquityDatabase,
     ) -> Result<Self, Error> {
         let peers = PeerMap::new(Mutex::new(HashMap::new()));
-        let credentials = Arc::new(Credentials::new());
+        
+        let mut client = EquityClient::new(seed_address);
+
+        let credentials = Arc::new(client.credentials);
 
         let brb = Brb::new();
 
         let context = Context {
             peers,
             db,
+
             credentials,
             brb
         };

@@ -300,6 +300,7 @@ dependencies = [
  "async-trait",
  "clap",
  "ed25519-consensus",
+ "equity_client",
  "equity_consensus",
  "equity_p2p",
  "equity_storage",

@@ -12,27 +12,33 @@ use tokio::{
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 use tracing::info;
-use equity_p2p::Peer;
+use equity_p2p::{Peer, PeerMap};
 
 use crate::Error;
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub enum PeerCommand {
-    Initialize {
-
-    },
-    Transaction
+    TransactionBroadcast
 }
 
-pub enum Transaction {
-    // Initializing a ClientCommand does not require a siganture from the submitting peer
+pub enum TransactionBroadcast {
+    // Initializing a ClientCommand does not require a signature from the submitting peer
     Init {
         command: ClientCommand
     },    
     Echo {
-
+        command: ClientCommand
+    },
+    Ready {
+        hash: String
     }
+}
 
+pub struct InitResponse {
+    peer_map: PeerMap,
+    public_key: VerificationKey,
+    hash: String,
+    signature: Signature,
 }
 
 
@@ -137,12 +143,8 @@ async fn handle_connection(
 
         let (peer_map_hash, peer_map_signature) = context.credentials.hash_sign(&peer_map_string);
 
-        let init_response = InitResponse {
-            peer_map,
-            public_key: context.credentials.public_key,
-            hash: peer_map_hash,
-            signature: peer_map_signature,
-        };
+        let init_response = 
+        
 
         tx.send(Message::binary(
             serde_json::to_string(&init_response).unwrap(),
@@ -170,7 +172,8 @@ async fn initialize_network(
         .expect("Failed to connect");
 
     println!("WebSocket handshake has been successfully completed");
-
+    
+    // Send ClientCommand
     ws_stream
         .send(initial_message(&context.credentials, p2p_listener))
         .await
@@ -179,6 +182,7 @@ async fn initialize_network(
     let (write, mut read) = ws_stream.split();
 
     // Insert the write part of this peer to the peer map.
+    // I do need to receive the peermap, but that will be in handle connection.
     let (tx, rx) = channel(1000);
     let rx = ReceiverStream::new(rx);
 

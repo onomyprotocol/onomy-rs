@@ -17,6 +17,7 @@ equity_storage = { path = "../equity_storage" }
 equity_types = { path = "../equity_types" }
 equity_consensus = { path = "../equity_consensus" }
 equity_p2p = { path = "../equity_p2p"}
+equity_client = { path = "../equity_client" }
 
 async-trait = "0.1"
 clap = { version = "3.2", features = ["derive"] }

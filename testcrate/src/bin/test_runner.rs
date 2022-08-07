@@ -3,7 +3,7 @@ use std::time::Duration;
 use clap::Parser;
 use common::test_mode::TestMode;
 use equity_client::EquityClient;
-use equity_types::{EquityAddressResponse, Value};
+use equity_types::{EquityAddressResponse, Value, Keys};
 
 const TIMEOUT: Duration = Duration::from_secs(15);
 
@@ -19,7 +19,7 @@ async fn main() {
     let args = CliArgs::parse();
     match args.test_mode {
         mode @ (TestMode::Health | TestMode::GetResponse) => {
-            let client = EquityClient::new("http://equity_core:4040");
+            let client = EquityClient::new("http://equity_core:4040", Keys::Empty);
             client.wait_for_healthy(TIMEOUT).await.unwrap();
             match mode {
                 TestMode::Health => {
