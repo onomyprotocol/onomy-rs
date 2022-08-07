@@ -1,7 +1,7 @@
 use std::{collections::HashMap, net::SocketAddr};
 
 use ed25519_consensus::{Signature, VerificationKey};
-use equity_types::{Context, Credentials, EquityError, TransactionBody};
+use equity_types::{Context, ClientCommand, Credentials, EquityError, TransactionBody};
 use futures::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use tokio::{
@@ -17,26 +17,25 @@ use equity_p2p::Peer;
 use crate::Error;
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
-pub struct Initiate {
-    pub public_key: VerificationKey,
-    pub nonce: u64,
+pub enum PeerCommand {
+    Initialize {
+
+    },
+    Transaction
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
-pub struct InitMessage {
-    pub initiate: Initiate,
-    pub listener: String,
-    pub hash: String,
-    pub signature: Signature,
+pub enum Transaction {
+    // Initializing a ClientCommand does not require a siganture from the submitting peer
+    Init {
+        command: ClientCommand
+    },    
+    Echo {
+
+    }
+
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
-pub struct InitResponse {
-    pub peer_map: HashMap<String, VerificationKey>,
-    pub public_key: VerificationKey,
-    pub hash: String,
-    pub signature: Signature,
-}
+
 
 pub async fn start_p2p_server(
     p2p_listener: SocketAddr,
@@ -106,7 +105,7 @@ async fn handle_connection(
     if let Some(initial_msg) = read.next().await {
         let initial_msg = initial_msg.unwrap();
 
-        let init_message: InitMessage =
+        let init_message: PeerCommand =
             serde_json::from_str(&initial_msg.into_text().unwrap()).unwrap();
 
         listener = init_message.listener;
