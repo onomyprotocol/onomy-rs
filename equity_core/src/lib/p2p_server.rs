@@ -16,6 +16,8 @@ use equity_p2p::{Peer, PeerMap};
 use crate::service::Context;
 use crate::error::Error;
 
+
+
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub enum PeerCommand {
     TransactionBroadcast
@@ -229,8 +231,8 @@ pub fn initial_message(credentials: &Credentials, p2p_listener: SocketAddr) -> M
     )
 }
 
-pub async fn peer_connection(peer_address: SocketAddr) -> Result<Sender<Message>, Error> {
-    let (mut ws_stream, _) = connect_async(seed_address)
+pub async fn peer_connection(peer_address: SocketAddr, context: Context) -> Result<(), Error> {
+    let (mut ws_stream, _) = connect_async(socket_to_ws(peer_address))
         .await
         .expect("Failed to connect");
 
@@ -251,35 +253,30 @@ pub async fn peer_connection(peer_address: SocketAddr) -> Result<Sender<Message>
 
     tokio::spawn(rx.map(Ok).forward(write));
 
-    tokio::spawn({
+    tokio::spawn(async move {
         while let Some(Ok(msg)) = read.next().await {
-        let tx_clone = tx.clone();
-        let command: ClientCommand = serde_json::from_slice(&msg.into_data()).unwrap();
-        tokio::spawn(
-            p2p_switch(
-                command, 
-                tx_clone, 
-                context.clone()
-        ))
-    }
-    };);
-
-    return Ok(tx);
+            let tx_clone = tx.clone();
+            let command: ClientCommand = serde_json::from_slice(&msg.into_data()).unwrap();
+            tokio::spawn(async move {
+                p2p_switch(
+                    command, 
+                    tx_clone, 
+                    context.clone()
+                )
+            });
+        }
+    });
+    Ok(())
 }
 
 async fn p2p_switch(
-    client_command: ClientCommand, 
+    peer_command: PeerCommand, 
     sender: Sender<Message>,
     context: Context
 ) {
-    match client_command {
-        ClientCommand::Health { } => {
-            let response = health();
-            sender.send(Message::binary(serde_json::to_vec(&response).expect("msg does not have serde serialize trait"))).await.unwrap();
-        },
-        ClientCommand::Transaction{ body, hash, signature } => {
-            let response = transaction(context, body, hash, signature).await;
-            sender.send(Message::binary(serde_json::to_vec(&response).expect("msg does not have serde serialize trait"))).await.unwrap();
+    match peer_command {
+        PeerCommand::TransactionBroadcast { } => {
+            
         }
     }
 }

@@ -26,7 +26,7 @@ pub struct EquityClient {
 }
 
 impl EquityClient {
-    pub async fn new(url: &str, keys: Keys) -> Result<Self, Error> {
+    pub async fn new(ws_addr: &str, keys: Keys) -> Result<Self, Error> {
         let credentials;
 
         match keys {
@@ -34,11 +34,11 @@ impl EquityClient {
             Keys::Is(value) => credentials = value,
         }
 
-        let (ws_stream, _) = connect_async(url)
+        let (ws_stream, _) = connect_async(ws_addr)
         .await
         .expect("Failed to connect");
 
-        println!("WebSocket connection established: {}", url);
+        println!("WebSocket connection established: {}", ws_addr);
 
         let (mut write, mut read) = ws_stream.split();
 
@@ -73,7 +73,7 @@ impl EquityClient {
         };
         
 
-        info!(target = "equity-client", "URL is: {:?}", url);
+        info!(target = "equity-client", "WS Address is: {:?}", ws_addr);
         Ok(res)
     }
 
