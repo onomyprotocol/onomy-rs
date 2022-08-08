@@ -18,6 +18,7 @@ use tracing::info;
 
 use crate::Error;
 
+#[derive(Debug, Clone)]
 pub struct EquityClient {
     sender: Sender<ClientCommand>,
     credentials: Arc<Credentials>,

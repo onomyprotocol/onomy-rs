@@ -42,6 +42,11 @@ pub struct InitResponse {
 }
 
 
+pub fn socket_to_ws(addr: SocketAddr) -> String {
+    let mut ws_addr = "ws://".to_string();
+    ws_addr.push_str(&addr.to_string());
+    return ws_addr
+}
 
 pub async fn start_p2p_server(
     p2p_listener: SocketAddr,
@@ -246,22 +251,35 @@ pub async fn peer_connection(peer_address: SocketAddr) -> Result<Sender<Message>
 
     tokio::spawn(rx.map(Ok).forward(write));
 
-    tokio::spawn(while let Some(Ok(msg)) = read.next().await {
+    tokio::spawn({
+        while let Some(Ok(msg)) = read.next().await {
         let tx_clone = tx.clone();
         let command: ClientCommand = serde_json::from_slice(&msg.into_data()).unwrap();
         tokio::spawn(
-            client_switch(
+            p2p_switch(
                 command, 
                 tx_clone, 
                 context.clone()
-        ));
-    });
+        ))
+    }
+    };);
 
     return Ok(tx);
 }
 
-pub fn socket_to_ws(addr: SocketAddr) -> String {
-    let mut ws_addr = "ws://".to_string();
-    ws_addr.push_str(&addr.to_string());
-    return ws_addr
+async fn p2p_switch(
+    client_command: ClientCommand, 
+    sender: Sender<Message>,
+    context: Context
+) {
+    match client_command {
+        ClientCommand::Health { } => {
+            let response = health();
+            sender.send(Message::binary(serde_json::to_vec(&response).expect("msg does not have serde serialize trait"))).await.unwrap();
+        },
+        ClientCommand::Transaction{ body, hash, signature } => {
+            let response = transaction(context, body, hash, signature).await;
+            sender.send(Message::binary(serde_json::to_vec(&response).expect("msg does not have serde serialize trait"))).await.unwrap();
+        }
+    }
 }
