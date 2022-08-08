@@ -1,20 +1,20 @@
 use std::{collections::HashMap, net::SocketAddr};
 
 use ed25519_consensus::{Signature, VerificationKey};
-use equity_types::{Context, ClientCommand, Credentials, EquityError, TransactionBody};
+use equity_types::{ClientCommand, Credentials, EquityError, TransactionBody};
 use futures::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use tokio::{
     net::{TcpListener, TcpStream},
-    sync::mpsc::channel,
+    sync::mpsc::{channel, Sender},
     task::JoinHandle,
 };
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 use tracing::info;
 use equity_p2p::{Peer, PeerMap};
-
-use crate::Error;
+use crate::service::Context;
+use crate::error::Error;
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub enum PeerCommand {
@@ -49,14 +49,8 @@ pub async fn start_p2p_server(
     context: Context
 ) -> Result<(SocketAddr, JoinHandle<Result<(), EquityError>>), Error> {
     if seed_address.to_string() != *"0.0.0.0:0" {
-        let mut seed_address_ws = "ws://".to_string();
-        seed_address_ws.push_str(&seed_address.to_string());
-
-        let mut p2p_address_ws = "ws://".to_string();
-        p2p_address_ws.push_str(&p2p_listener.to_string());
-
         initialize_network(
-            &seed_address_ws,
+            &socket_to_ws(seed_address),
             context.clone(),
             p2p_listener,
         )
@@ -228,4 +222,46 @@ pub fn initial_message(credentials: &Credentials, p2p_listener: SocketAddr) -> M
         serde_json::to_vec(&transaction)
         .unwrap(),
     )
+}
+
+pub async fn peer_connection(peer_address: SocketAddr) -> Result<Sender<Message>, Error> {
+    let (mut ws_stream, _) = connect_async(seed_address)
+        .await
+        .expect("Failed to connect");
+
+    println!("WebSocket handshake has been successfully completed");
+    
+    // Send ClientCommand
+    ws_stream
+        .send(initial_message(&context.credentials, p2p_listener))
+        .await
+        .unwrap();
+
+    let (write, mut read) = ws_stream.split();
+
+    // Insert the write part of this peer to the peer map.
+    // I do need to receive the peermap, but that will be in handle connection.
+    let (tx, rx) = channel(1000);
+    let rx = ReceiverStream::new(rx);
+
+    tokio::spawn(rx.map(Ok).forward(write));
+
+    tokio::spawn(while let Some(Ok(msg)) = read.next().await {
+        let tx_clone = tx.clone();
+        let command: ClientCommand = serde_json::from_slice(&msg.into_data()).unwrap();
+        tokio::spawn(
+            client_switch(
+                command, 
+                tx_clone, 
+                context.clone()
+        ));
+    });
+
+    return Ok(tx);
+}
+
+pub fn socket_to_ws(addr: SocketAddr) -> String {
+    let mut ws_addr = "ws://".to_string();
+    ws_addr.push_str(&addr.to_string());
+    return ws_addr
 }

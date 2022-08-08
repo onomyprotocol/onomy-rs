@@ -1,8 +1,9 @@
 use std::net::SocketAddr;
 
 use ed25519_consensus::{Signature, VerificationKey};
+
 use equity_types::{
-    EquityError, Context, HealthResponse,
+    EquityError, HealthResponse,
     PostTransactionResponse, ClientCommand, TransactionBody
 };
 
@@ -19,7 +20,9 @@ use tokio_stream::wrappers::ReceiverStream;
 use tokio_tungstenite::tungstenite::Message;
 use tracing::info;
 
-use crate::Error;
+use crate::error::Error;
+
+use crate::service::Context;
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Peer {
@@ -165,7 +168,7 @@ async fn transaction(
 }
 
 // Pre-verification step - Signature and any other state-ful checks
-fn verify_body(body: &TransactionBody, _hash: &String, signature: &Signature) -> Result<(), Error::Error> {
+fn verify_body(body: &TransactionBody, _hash: &String, signature: &Signature) -> Result<(), Error> {
     let mut digest: Sha512 = Sha512::new();
 
     digest.update(serde_json::to_string(&body).unwrap());
@@ -174,11 +177,15 @@ fn verify_body(body: &TransactionBody, _hash: &String, signature: &Signature) ->
 
     match body {
         TransactionBody::SetValues { public_key, nonce: _, keys_values: _ } => {
-            public_key.verify(signature, digest_string.as_bytes())
+            public_key.verify(signature, digest_string.as_bytes());
+            Ok(())
+            
         }
         TransactionBody::SetValidator { public_key, nonce: _, ws} => {
-            public_key.verify(signature, digest_string.as_bytes())
-
+            public_key.verify(signature, digest_string.as_bytes());
+            // Verify P2P connection
+            
+            Ok(())
         }
     }
 }

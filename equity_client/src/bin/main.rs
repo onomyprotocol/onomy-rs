@@ -1,5 +1,6 @@
 use clap::Parser;
 use equity_client::EquityClient;
+use equity_types::Keys;
 use tracing::{info};
 use std::{thread, time};
 
