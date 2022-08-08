@@ -5,6 +5,8 @@ use ed25519_consensus::{Signature, SigningKey, VerificationKey};
 use rand::thread_rng;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha512};
+
+
 use equity_p2p::PeerMap;
 use equity_storage::EquityDatabase;
 use equity_consensus::Brb;
@@ -152,10 +154,3 @@ pub enum TransactionBody {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct Context {
-    pub peers: PeerMap,
-    pub db: EquityDatabase,
-    pub credentials: Arc<Credentials>,
-    pub brb: Brb
-}

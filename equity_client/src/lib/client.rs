@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, sync::{Arc, Mutex}};
 
 use futures::{SinkExt, StreamExt};
 
@@ -20,8 +20,8 @@ use crate::Error;
 
 pub struct EquityClient {
     sender: Sender<ClientCommand>,
-    credentials: Credentials,
-    nonce: u64
+    credentials: Arc<Credentials>,
+    nonce: Arc<Mutex<u64>>
 }
 
 impl EquityClient {
@@ -67,8 +67,8 @@ impl EquityClient {
 
         let res = Self {
             sender: tx,
-            credentials,
-            nonce: 1 
+            credentials: Arc::new(credentials),
+            nonce: Arc::new(Mutex::new(1))
         };
         
 
@@ -77,7 +77,8 @@ impl EquityClient {
     }
 
     pub fn noncer(&mut self) {
-        self.nonce += 1;
+        let mut nonce = self.nonce.lock().unwrap();
+        *nonce += 1
     }
 
     pub async fn health(&self) {
@@ -97,9 +98,11 @@ impl EquityClient {
             keys_values.insert(o, p);
         }
 
+        let nonce = self.nonce.lock().unwrap();
+
         TransactionBody::SetValues {
             public_key: self.credentials.public_key,
-            nonce: self.nonce,
+            nonce: *nonce,
             keys_values
         }
     }

@@ -6,7 +6,7 @@ use std::{
 
 use equity_storage::EquityDatabase;
 use equity_consensus::Brb;
-use equity_types::{EquityError, Context};
+use equity_types::{Credentials, EquityError, Keys};
 use futures::future::join_all;
 use tokio::task::JoinHandle;
 use equity_p2p::PeerMap;
@@ -22,6 +22,15 @@ pub struct EquityService {
     tasks: Vec<JoinHandle<Result<(), EquityError>>>,
 }
 
+#[derive(Debug, Clone)]
+pub struct Context {
+    pub peers: PeerMap,
+    pub db: EquityDatabase,
+    pub client: EquityClient,
+    pub credentials: Arc<Credentials>,
+    pub brb: Brb
+}
+
 impl EquityService {
     pub async fn new(
         api_listener: SocketAddr,
@@ -31,16 +40,16 @@ impl EquityService {
     ) -> Result<Self, Error> {
         let peers = PeerMap::new(Mutex::new(HashMap::new()));
         
-        let mut client = EquityClient::new(seed_address);
+        let credentials = Arc::new(Credentials::new());
 
-        let credentials = Arc::new(client.credentials);
+        let mut client = EquityClient::new(seed_address, Keys::Is(credentials)).await.unwrap();
 
         let brb = Brb::new();
 
         let context = Context {
             peers,
             db,
-
+            client,
             credentials,
             brb
         };
