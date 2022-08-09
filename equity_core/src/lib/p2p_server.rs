@@ -117,43 +117,7 @@ async fn handle_connection(
 
         listener = init_message.listener;
 
-        let mut peer_map: HashMap<String, VerificationKey> = HashMap::new();
-
-        {
-            let mut peers = context.peers.lock().unwrap();
-
-            let peers_iter = peers.iter();
-
-            // Iterate over everything.
-            for (adr, peer) in peers_iter {
-                peer_map.insert(adr.clone(), peer.public_key);
-            }
-
-            let peer_struct = Peer {
-                send: tx.clone(),
-                public_key: init_message.initiate.public_key,
-                peer_map: peer_map.clone(),
-            };
-
-            peers.insert(listener.clone(), peer_struct);
-
-            drop(peers);
-        }
-
-        let peer_map_string = serde_json::to_string(&peer_map).unwrap();
-
-        let (peer_map_hash, peer_map_signature) = context.credentials.hash_sign(&peer_map_string);
-
-        let init_response = 
         
-
-        tx.send(Message::binary(
-            serde_json::to_string(&init_response).unwrap(),
-        ))
-        .await
-        .expect("Error during send");
-    }
-
     while let Some(msg) = read.next().await {
         println!("Received msg: {:?}", msg);
     }
@@ -256,7 +220,7 @@ pub async fn peer_connection(peer_address: SocketAddr, context: Context) -> Resu
     tokio::spawn(async move {
         while let Some(Ok(msg)) = read.next().await {
             let tx_clone = tx.clone();
-            let command: ClientCommand = serde_json::from_slice(&msg.into_data()).unwrap();
+            let command: PeerCommand = serde_json::from_slice(&msg.into_data()).unwrap();
             tokio::spawn(async move {
                 p2p_switch(
                     command, 
