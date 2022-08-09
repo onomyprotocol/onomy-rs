@@ -23,6 +23,8 @@ pub enum PeerCommand {
     TransactionBroadcast
 }
 
+
+
 pub enum TransactionBroadcast {
     // Initializing a ClientCommand does not require a signature from the submitting peer
     Init {
@@ -220,6 +222,7 @@ pub async fn peer_connection(peer_address: SocketAddr, context: Context) -> Resu
     tokio::spawn(async move {
         while let Some(Ok(msg)) = read.next().await {
             let tx_clone = tx.clone();
+            // Need validation
             let command: PeerCommand = serde_json::from_slice(&msg.into_data()).unwrap();
             tokio::spawn(async move {
                 p2p_switch(
@@ -239,8 +242,20 @@ async fn p2p_switch(
     context: Context
 ) {
     match peer_command {
-        PeerCommand::TransactionBroadcast { } => {
+        PeerCommand::TransactionBroadcast::Init {
+
+        } => {
             
+        },
+        PeerCommand::TransactionBroadcast::Echo {
+
+        } => {
+
+        },
+        PeerCommand::TransactionBroadcast::Ready {
+
+        } => {
+
         }
     }
 }
