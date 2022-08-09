@@ -7,6 +7,8 @@ use equity_types::{
     PostTransactionResponse, ClientCommand, TransactionBody
 };
 
+use equity_types::TransactionBody::{ SetValues, SetValidator }
+
 use futures::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha512};
@@ -105,11 +107,27 @@ async fn client_switch(
     match client_command {
         ClientCommand::Health { } => {
             let response = health();
-            sender.send(Message::binary(serde_json::to_vec(&response).expect("msg does not have serde serialize trait"))).await.unwrap();
+            sender
+                .send(Message::binary(serde_json::to_vec(&response)
+                .expect("msg does not have serde serialize trait"))).await.unwrap();
         },
         ClientCommand::Transaction{ body, hash, signature } => {
-            let response = transaction(context, body, hash, signature).await;
-            sender.send(Message::binary(serde_json::to_vec(&response).expect("msg does not have serde serialize trait"))).await.unwrap();
+            match body {
+                SetValues { public_key, nonce, keys_values } => {
+                    if let Error = verify_signature(&body, public_key, &signature) {
+                        return
+                    }
+                    let response = transaction(context, body, hash, signature).await;
+                    sender
+                        .send(Message::binary(serde_json::to_vec(&response)
+                        .expect("msg does not have serde serialize trait"))).await.unwrap();
+                },
+                SetValidator { public_key, nonce, ws } => {
+                    if let Error = verify_signature(&body, public_key, &signature) {
+                        return
+                    }
+                }
+            }
         }
     }
 }
@@ -168,26 +186,17 @@ async fn transaction(
 }
 
 // Pre-verification step - Signature and any other state-ful checks
-fn verify_body(body: &TransactionBody, _hash: &String, signature: &Signature) -> Result<(), Error> {
+fn verify_signature(body: &TransactionBody, public_key: VerificationKey, signature: &Signature) -> Result<(), Error> {
     let mut digest: Sha512 = Sha512::new();
 
     digest.update(serde_json::to_string(&body).unwrap());
 
     let digest_string: String = format!("{:X}", digest.clone().finalize());
 
-    match body {
-        TransactionBody::SetValues { public_key, nonce: _, keys_values: _ } => {
-            public_key.verify(signature, digest_string.as_bytes());
-            Ok(())
-            
-        }
-        TransactionBody::SetValidator { public_key, nonce: _, ws} => {
-            public_key.verify(signature, digest_string.as_bytes());
-            // Verify P2P connection
-            
-            Ok(())
-        }
-    }
+    
+    public_key.verify(signature, digest_string.as_bytes());
+    
+    Ok(())
 }
 
 
