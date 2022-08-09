@@ -4,10 +4,10 @@ use ed25519_consensus::{Signature, VerificationKey};
 
 use equity_types::{
     EquityError, HealthResponse,
-    PostTransactionResponse, ClientCommand, TransactionBody
+    PostTransactionResponse, ClientCommand, TransactionBody, socket_to_ws
 };
 
-use equity_types::TransactionBody::{ SetValues, SetValidator }
+use equity_types::TransactionBody::{ SetValues, SetValidator };
 
 use futures::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
@@ -25,6 +25,7 @@ use tracing::info;
 use crate::error::Error;
 
 use crate::service::Context;
+use crate::p2p_server::peer_connection;
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Peer {
@@ -126,6 +127,10 @@ async fn client_switch(
                     if let Error = verify_signature(&body, public_key, &signature) {
                         return
                     }
+                    // 1) Connect
+                    if let Error = peer_connection(ws, context) {
+                        return
+                    }
                 }
             }
         }
@@ -171,7 +176,6 @@ async fn transaction(
     }
 
     // Post transaction record to db
-
     if let Ok(None) = context.db.set(&hash, body) {
         return PostTransactionResponse {
             success: true,
@@ -185,7 +189,7 @@ async fn transaction(
     }
 }
 
-// Pre-verification step - Signature and any other state-ful checks
+
 fn verify_signature(body: &TransactionBody, public_key: VerificationKey, signature: &Signature) -> Result<(), Error> {
     let mut digest: Sha512 = Sha512::new();
 

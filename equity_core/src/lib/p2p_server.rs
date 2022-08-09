@@ -1,7 +1,7 @@
 use std::{collections::HashMap, net::SocketAddr};
 
 use ed25519_consensus::{Signature, VerificationKey};
-use equity_types::{ClientCommand, Credentials, EquityError, TransactionBody};
+use equity_types::{ClientCommand, Credentials, EquityError, TransactionBody, socket_to_ws};
 use futures::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use tokio::{
@@ -50,11 +50,7 @@ pub struct InitResponse {
 }
 
 
-pub fn socket_to_ws(addr: SocketAddr) -> String {
-    let mut ws_addr = "ws://".to_string();
-    ws_addr.push_str(&addr.to_string());
-    return ws_addr
-}
+
 
 pub async fn start_p2p_server(
     p2p_listener: SocketAddr,
@@ -131,6 +127,7 @@ async fn handle_connection(
     let mut peers = context.peers.lock().unwrap();
 
     peers.remove(&listener);
+    }
 }
 
 async fn initialize_network(
