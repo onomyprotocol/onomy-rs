@@ -16,16 +16,20 @@ use equity_p2p::{Peer, PeerMap};
 use crate::service::Context;
 use crate::error::Error;
 
+use crate::TransactionBroadcastStage::{ Init, Echo, Ready };
 
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub enum PeerCommand {
-    TransactionBroadcast
+    TransactionBroadcast {
+        stage: TransactionBroadcastStage,
+    }
 }
 
 
-
-pub enum TransactionBroadcast {
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub enum TransactionBroadcastStage {
     // Initializing a ClientCommand does not require a signature from the submitting peer
     Init {
         command: ClientCommand
@@ -242,20 +246,18 @@ async fn p2p_switch(
     context: Context
 ) {
     match peer_command {
-        PeerCommand::TransactionBroadcast::Init {
+        PeerCommand::TransactionBroadcast { stage } => {
+            match stage {
+                Init { command } => {
 
-        } => {
-            
-        },
-        PeerCommand::TransactionBroadcast::Echo {
+                },
+                Echo { command } => {
 
-        } => {
+                },
+                Ready { hash } => {
 
-        },
-        PeerCommand::TransactionBroadcast::Ready {
-
-        } => {
-
+                }
+            }
         }
     }
 }
