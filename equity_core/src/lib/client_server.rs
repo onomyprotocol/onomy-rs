@@ -4,7 +4,7 @@ use ed25519_consensus::{Signature, VerificationKey};
 
 use equity_types::{
     EquityError, HealthResponse,
-    PostTransactionResponse, ClientCommand, TransactionBody, socket_to_ws
+    PostTransactionResponse, ClientCommand, TransactionBody
 };
 
 use equity_types::TransactionBody::{ SetValues, SetValidator };
@@ -128,8 +128,19 @@ async fn client_switch(
                         return
                     }
                     // 1) Connect
-                    if let Error = peer_connection(ws, context) {
-                        return
+                    let connection = peer_connection(ws, context).await;
+                    
+                    // 2) Once Connected - Initiate BRB
+                    // At end of BRB, then peer connection is added
+                    // to the validator list.  So, BRB needs to store this connection
+                    // The task will need to hold the Command and anything else related
+                    match connection {
+                        Ok(()) => {
+                            context.brb.initiate(client_command, )
+                        },
+                        Error => {
+                            return
+                        }
                     }
                 }
             }

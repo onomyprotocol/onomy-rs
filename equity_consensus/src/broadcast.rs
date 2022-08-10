@@ -23,10 +23,15 @@ impl Brb {
                     match cmd {
                         Command::Get { key, resp } => {
                             let mut sender = None;
-                            if let Some(res) = brb_map.get(&key) {
-                                sender = Some(res.clone());
-                            }
-                            let _ = resp.send(sender);
+                            let response = brb_map.get(&key);
+
+                            match response {
+                                Some(res) => {
+                                    res = &res.clone();
+                                    resp.send(Some(*res))
+                                },
+                                None => resp.send(None)
+                            };
                         }
                         Command::Set { key, val, resp } => {
                             let mut exists: bool = false;
@@ -43,11 +48,23 @@ impl Brb {
             sender: tx
         }
     }
-    
+
+    async fn get(hash: String) -> Option<mpsc::Sender<BrbMsg>> {
+
+    }
+
     // All BRB broadcast messages are either initiated or received.
     // Initiation is prompted by out of network messages (client / new validator) or enabled consensus condition.
     // All in-network messages are Received as part of Brb Broadcast
-    pub async fn initiate (&self, hash: String) {
+    pub async fn initiate (&self, msg: hash: String) {
+        // First need to check if there is already an initiated BRB instance with this same hash
+        
+
+
+        if let Some() = self.sender.send(Command::Get{
+
+        })
+        
         let (brb_tx, mut brb_rx) = mpsc::channel(1000);
         let (brb_one_tx, brb_one_rx) = oneshot::channel();
         
