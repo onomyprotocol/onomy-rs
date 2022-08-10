@@ -22,13 +22,13 @@ impl Brb {
                 while let Some(cmd) = rx.recv().await {
                     match cmd {
                         Command::Get { key, resp } => {
-                            let mut sender = None;
                             let response = brb_map.get(&key);
 
                             match response {
                                 Some(res) => {
                                     res = &res.clone();
-                                    resp.send(Some(*res))
+                                    res.send(BrbMsg::Echo{});
+                                    resp.send(Some(res))
                                 },
                                 None => resp.send(None)
                             };
