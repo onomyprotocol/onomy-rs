@@ -13,6 +13,7 @@ use ed25519_consensus::{Signature, VerificationKey};
 impl Brb {
     pub fn new() -> Brb {
         let (tx, mut rx) = mpsc::channel(1000);
+
         tokio::spawn(async move
             {
                 // Optimize to HashMap that uses the SHA512 directly without hashing a key
@@ -25,10 +26,10 @@ impl Brb {
                             let response = brb_map.get(&key);
 
                             match response {
-                                Some(res) => {
-                                    res = &res.clone();
-                                    res.send(BrbMsg::Echo{});
-                                    resp.send(Some(res))
+                                Some(sender) => {
+                                    sender = &sender.clone();
+                                    sender.send(BrbMsg::Echo{});
+                                    resp.send(Some(*sender))
                                 },
                                 None => resp.send(None)
                             };
@@ -49,21 +50,21 @@ impl Brb {
         }
     }
 
-    async fn get(hash: String) -> Option<mpsc::Sender<BrbMsg>> {
-
+    async fn get(&self, hash: &String) -> Option<mpsc::Sender<BrbMsg>> {
+        let (tx, rx) = oneshot::channel();
+        self.sender.send(Command::Get { key: hash.clone(), resp: tx }).await.unwrap();
+        rx.await.unwrap()
     }
 
     // All BRB broadcast messages are either initiated or received.
     // Initiation is prompted by out of network messages (client / new validator) or enabled consensus condition.
     // All in-network messages are Received as part of Brb Broadcast
-    pub async fn initiate (&self, msg: hash: String) {
+    pub async fn initiate (&self, hash: String) {
         // First need to check if there is already an initiated BRB instance with this same hash
-        
-
-
-        if let Some() = self.sender.send(Command::Get{
-
-        })
+        if let Some(brb_sender) = self.get(&hash).await {
+            // BRB manager exists then treat as Echo
+            // Need to define below how to use Echo before completing this part.
+        }
         
         let (brb_tx, mut brb_rx) = mpsc::channel(1000);
         let (brb_one_tx, brb_one_rx) = oneshot::channel();
