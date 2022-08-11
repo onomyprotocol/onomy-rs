@@ -27,18 +27,18 @@ impl Brb {
 
                             match response {
                                 Some(sender) => {
-                                    sender = &sender.clone();
-                                    sender.send(BrbMsg::Echo{});
-                                    resp.send(Some(*sender))
+                                    resp.send(Some(sender.clone())).unwrap()
                                 },
-                                None => resp.send(None)
+                                None => resp.send(None).unwrap()
                             };
                         }
                         Command::Set { key, val, resp } => {
                             let mut exists: bool = false;
+                            
                             if let Some(_res) = brb_map.insert(key, val) {
                                 exists = true;
                             }
+                            
                             let _ = resp.send(exists);
                         }
                     }
@@ -64,6 +64,10 @@ impl Brb {
         if let Some(brb_sender) = self.get(&hash).await {
             // BRB manager exists then treat as Echo
             // Need to define below how to use Echo before completing this part.
+            brb.sender.send(BrbMsg::Echo{
+                hash: String,
+
+            })
         }
         
         let (brb_tx, mut brb_rx) = mpsc::channel(1000);
@@ -134,10 +138,12 @@ enum Command {
 
 enum BrbMsg {
     Init {
-
+        hash: String,
+        command: ClientCommand
     },
     Echo {
-
+        hash: String,
+        peer: VerificationKey
     },
     Ready {
 
