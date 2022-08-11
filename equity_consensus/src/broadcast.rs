@@ -59,16 +59,16 @@ impl Brb {
     // All BRB broadcast messages are either initiated or received.
     // Initiation is prompted by out of network messages (client / new validator) or enabled consensus condition.
     // All in-network messages are Received as part of Brb Broadcast
-    pub async fn initiate (&self, hash: String) {
+    pub async fn initiate (&self, hash: String, peer: VerificationKey, msg: MsgType) {
         // First need to check if there is already an initiated BRB instance with this same hash
         if let Some(brb_sender) = self.get(&hash).await {
             // BRB manager exists then treat as Echo
             // Need to define below how to use Echo before completing this part.
-            brb.sender.send(BrbMsg::Echo{
-                hash,
-
-
-            })
+            brb_sender.send(BrbMsg::Echo{
+                hash: hash.clone(),
+                peer,
+                msg
+            }).await.unwrap()
         }
         
         let (brb_tx, mut brb_rx) = mpsc::channel(1000);
@@ -78,13 +78,13 @@ impl Brb {
             {
                 while let Some(brb_msg) = brb_rx.recv().await {
                     match brb_msg {
-                        BrbMsg::Init { hash, command } => {
+                        BrbMsg::Init { hash, peer, msg } => {
                             
                         }
-                        BrbMsg::Echo { } => {
+                        BrbMsg::Echo { hash, peer, msg } => {
                             
                         }
-                        BrbMsg::Ready { } => {
+                        BrbMsg::Ready { hash } => {
                             
                         }
                     }
@@ -137,39 +137,38 @@ enum BrbCommand {
     },
 }
 
+#[derive(Debug)]
 enum BrbMsg {
     Init {
         hash: String,
         peer: VerificationKey,
-        msg: Msg
+        msg: MsgType
     },
     Echo {
         hash: String,
         peer: VerificationKey,
-        msg: Msg
+        msg: MsgType
     },
     Ready {
-
+        hash: String
     }
 }
 
-enum Msg {
+#[derive(Debug)]
+enum MsgType {
     ClientCommand,
     PeerCommand
 }
 
+#[derive(Debug)]
 pub struct BrbInternal {
     hash: String,
-    body: BrbBody,
+    msg: MsgType,
     signature: Signature,
     init: bool,
     echo: Vec<VerificationKey>,
     ready: Vec<VerificationKey>,
     commit: bool
-}
-
-enum BrbBody {
-
 }
 
 /// Provided by the requester and used by the manager task to send
