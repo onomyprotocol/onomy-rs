@@ -7,7 +7,7 @@ use ed25519_consensus::{Signature, VerificationKey};
 
 #[derive(Debug, Clone)]
     pub struct Brb {
-    sender: mpsc::Sender<Command>
+    sender: mpsc::Sender<BrbCommand>
 }
 
 impl Brb {
@@ -22,7 +22,7 @@ impl Brb {
 
                 while let Some(cmd) = rx.recv().await {
                     match cmd {
-                        Command::Get { key, resp } => {
+                        BrbCommand::Get { key, resp } => {
                             let response = brb_map.get(&key);
 
                             match response {
@@ -32,7 +32,7 @@ impl Brb {
                                 None => resp.send(None).unwrap()
                             };
                         }
-                        Command::Set { key, val, resp } => {
+                        BrbCommand::Set { key, val, resp } => {
                             let mut exists: bool = false;
                             
                             if let Some(_res) = brb_map.insert(key, val) {
@@ -52,7 +52,7 @@ impl Brb {
 
     async fn get(&self, hash: &String) -> Option<mpsc::Sender<BrbMsg>> {
         let (tx, rx) = oneshot::channel();
-        self.sender.send(Command::Get { key: hash.clone(), resp: tx }).await.unwrap();
+        self.sender.send(BrbCommand::Get { key: hash.clone(), resp: tx }).await.unwrap();
         rx.await.unwrap()
     }
 
@@ -77,7 +77,7 @@ impl Brb {
             {
                 while let Some(brb_msg) = brb_rx.recv().await {
                     match brb_msg {
-                        BrbMsg::Init { } => {
+                        BrbMsg::Init { hash, command } => {
                             
                         }
                         BrbMsg::Echo { } => {
@@ -95,7 +95,7 @@ impl Brb {
 
         let (one_tx, one_rx) = oneshot::channel();
 
-        self.sender.send(Command::Set
+        self.sender.send(BrbCommand::Set
             {
                 key: hash, 
                 val: brb_tx, 
@@ -124,7 +124,7 @@ impl Brb {
 /// Each Byzantine Reliable Broadcast instance has its own task that maintains state
 /// The Routing HashMap stores the Senders to the Task mangaging the instance of BRB
 #[derive(Debug)]
-enum Command {
+enum BrbCommand {
     Get {
         key: String,
         resp: Responder<Option<mpsc::Sender<BrbMsg>>>,
@@ -148,6 +148,11 @@ enum BrbMsg {
     Ready {
 
     }
+}
+
+enum Command {
+    ClientCommand,
+    PeerCommand
 }
 
 pub struct BrbInternal {

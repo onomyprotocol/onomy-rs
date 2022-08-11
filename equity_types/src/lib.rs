@@ -154,6 +154,28 @@ pub enum TransactionBody {
     }
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub enum PeerCommand {
+    TransactionBroadcast {
+        stage: TransactionBroadcastStage,
+    }
+}
+
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub enum TransactionBroadcastStage {
+    // Initializing a ClientCommand does not require a signature from the submitting peer
+    Init {
+        command: ClientCommand
+    },    
+    Echo {
+        command: ClientCommand
+    },
+    Ready {
+        hash: String
+    }
+}
+
 pub fn socket_to_ws(addr: SocketAddr) -> String {
     let mut ws_addr = "ws://".to_string();
     ws_addr.push_str(&addr.to_string());

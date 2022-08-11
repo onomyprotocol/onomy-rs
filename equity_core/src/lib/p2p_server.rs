@@ -20,27 +20,7 @@ use crate::TransactionBroadcastStage::{ Init, Echo, Ready };
 
 
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub enum PeerCommand {
-    TransactionBroadcast {
-        stage: TransactionBroadcastStage,
-    }
-}
 
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub enum TransactionBroadcastStage {
-    // Initializing a ClientCommand does not require a signature from the submitting peer
-    Init {
-        command: ClientCommand
-    },    
-    Echo {
-        command: ClientCommand
-    },
-    Ready {
-        hash: String
-    }
-}
 
 pub struct InitResponse {
     peer_map: PeerMap,
