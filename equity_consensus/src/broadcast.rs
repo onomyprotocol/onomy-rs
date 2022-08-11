@@ -65,7 +65,8 @@ impl Brb {
             // BRB manager exists then treat as Echo
             // Need to define below how to use Echo before completing this part.
             brb.sender.send(BrbMsg::Echo{
-                hash: String,
+                hash,
+
 
             })
         }
@@ -139,18 +140,20 @@ enum BrbCommand {
 enum BrbMsg {
     Init {
         hash: String,
-        command: ClientCommand
+        peer: VerificationKey,
+        msg: Msg
     },
     Echo {
         hash: String,
-        peer: VerificationKey
+        peer: VerificationKey,
+        msg: Msg
     },
     Ready {
 
     }
 }
 
-enum Command {
+enum Msg {
     ClientCommand,
     PeerCommand
 }
