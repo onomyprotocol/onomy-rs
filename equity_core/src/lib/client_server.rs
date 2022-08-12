@@ -107,6 +107,7 @@ async fn client_switch(
     sender: Sender<Message>,
     context: Context
 ) {
+    let client_command2 = client_command.clone();
     match client_command {
         ClientCommand::Health { } => {
             let response = health();
@@ -115,22 +116,26 @@ async fn client_switch(
                 .expect("msg does not have serde serialize trait"))).await.unwrap();
         },
         ClientCommand::Transaction{ body, hash, signature } => {
+            let body2 = body.clone();
+            
             match body {
                 SetValues { public_key, nonce, keys_values } => {
-                    if let Error = verify_signature(&body, public_key, &signature) {
+                    if let Error = verify_signature(&body2, public_key, &signature) {
                         return
-                    }
-                    let response = transaction(context, body, hash, signature).await;
+                    }                
+                    
+                    let response = transaction(&context, body2, hash, signature).await;
                     sender
                         .send(Message::binary(serde_json::to_vec(&response)
                         .expect("msg does not have serde serialize trait"))).await.unwrap();
                 },
                 SetValidator { public_key, nonce, ws } => {
-                    if let Error = verify_signature(&body, public_key, &signature) {
+                    if let Error = verify_signature(&body2, public_key, &signature) {
                         return
-                    }
+                    } 
+
                     // 1) Connect
-                    let connection = peer_connection(ws, context).await;
+                    let connection = peer_connection(ws, &context).await;
                     
                     // 2) Once Connected - Initiate BRB
                     // At end of BRB, then peer connection is added
@@ -138,7 +143,7 @@ async fn client_switch(
                     // The task will need to hold the Command and anything else related
                     match connection {
                         Ok(()) => {
-                            context.brb.initiate(hash, public_key,  MsgType::Client(client_command));
+                            context.brb.initiate(hash, public_key,  MsgType::Client(client_command2));
                         },
                         Error => {
                             return
@@ -156,7 +161,7 @@ fn health() -> HealthResponse {
 }
 
 async fn transaction(
-    context: Context,
+    context: &Context,
     body: TransactionBody,
     hash: String,
     signature: Signature
@@ -181,7 +186,7 @@ async fn transaction(
     let hash_verify = hash.clone();
     let signature_verify = signature.clone();
 
-    if let Ok(Err(e)) = spawn_blocking(move || verify_body(&body_verify, &hash_verify, &signature_verify)).await {
+    if let Ok(Err(e)) = spawn_blocking(move || verify_signature(&body_verify, &hash_verify, &signature_verify)).await {
         return PostTransactionResponse {
             success: false,
             msg: e.to_string(),

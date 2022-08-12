@@ -14,8 +14,6 @@ use equity_client::EquityClient;
 
 use crate::{client_server::start_client_server, p2p_server::start_p2p_server, Error};
 
-
-
 pub struct EquityService {
     pub api_address: std::net::SocketAddr,
     pub p2p_address: std::net::SocketAddr,
