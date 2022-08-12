@@ -1,7 +1,7 @@
 use std::{collections::HashMap, net::SocketAddr};
 
 use ed25519_consensus::{Signature, VerificationKey};
-use equity_types::{ClientCommand, Credentials, EquityError, TransactionBody, socket_to_ws};
+use equity_types::{ClientCommand, Credentials, EquityError, PeerCommand, TransactionBody, socket_to_ws};
 use futures::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use tokio::{
@@ -178,7 +178,7 @@ pub fn initial_message(credentials: &Credentials, p2p_listener: SocketAddr) -> M
     )
 }
 
-pub async fn peer_connection(peer_address: SocketAddr, context: Context) -> Result<(), Error> {
+pub async fn peer_connection(peer_address: SocketAddr, context: &Context) -> Result<(), Error> {
     let (mut ws_stream, _) = connect_async(socket_to_ws(peer_address))
         .await
         .expect("Failed to connect");

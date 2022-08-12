@@ -5,6 +5,8 @@ edition = "2021"
 publish = false
 
 [dependencies]
+equity_types = { path = "../equity_types" }
+
 sha2 = "0.10"
 tokio = { version = "1.19", features = ["full"] }
 ed25519-consensus = "2"

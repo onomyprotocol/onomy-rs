@@ -9,6 +9,8 @@ use equity_types::{
 
 use equity_types::TransactionBody::{ SetValues, SetValidator };
 
+use equity_types::MsgType;
+
 use futures::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha512};
@@ -136,7 +138,7 @@ async fn client_switch(
                     // The task will need to hold the Command and anything else related
                     match connection {
                         Ok(()) => {
-                            context.brb.initiate(client_command, )
+                            context.brb.initiate(hash, public_key,  MsgType::Client(client_command));
                         },
                         Error => {
                             return

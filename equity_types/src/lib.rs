@@ -7,9 +7,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha512};
 
 
-use equity_p2p::PeerMap;
-use equity_storage::EquityDatabase;
-use equity_consensus::Brb;
+
 
 // TODO common derive macro
 
@@ -175,6 +173,13 @@ pub enum TransactionBroadcastStage {
         hash: String
     }
 }
+
+#[derive(Debug)]
+pub enum MsgType {
+    Client(ClientCommand),
+    Peer(PeerCommand)
+}
+
 
 pub fn socket_to_ws(addr: SocketAddr) -> String {
     let mut ws_addr = "ws://".to_string();

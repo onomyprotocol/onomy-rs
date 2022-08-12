@@ -2,8 +2,9 @@ use std::collections::HashMap;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 use ed25519_consensus::{Signature, VerificationKey};
+use equity_types::MsgType;
 
-// The HashMa
+// The HashMap
 
 #[derive(Debug, Clone)]
     pub struct Brb {
@@ -152,12 +153,6 @@ enum BrbMsg {
     Ready {
         hash: String
     }
-}
-
-#[derive(Debug)]
-enum MsgType {
-    ClientCommand,
-    PeerCommand
 }
 
 #[derive(Debug)]
