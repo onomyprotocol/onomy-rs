@@ -9,6 +9,8 @@ use tokio::{
     task::JoinHandle,
 };
 
+use serde_json::Value;
+
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 use tracing::info;
@@ -134,28 +136,38 @@ async fn initialize_network(
 
     let mut seed_peer_map: HashMap<String, VerificationKey> = HashMap::new();
 
-    if let Some(init_resp_msg) = read.next().await {
-        let init_resp_msg = init_resp_msg.unwrap();
+    if let Some(Ok(init_msg)) = read.next().await {
+        if let PeerCommand::PeerInit { peer_list, public_key, signature } =
+            serde_json::from_str(&init_msg.into_text().unwrap()).unwrap() {
+            
+            
 
-        let init_resp_msg: PeerInit =
-            serde_json::from_str(&init_resp_msg.into_text().unwrap()).unwrap();
+            let mut peers = context.peers.lock().unwrap();
+        
+            let peer_struct = Peer {
+                sender: tx.clone(),
+                peer_list,
+            };
+        
+            peers.insert(key_to_string(&public_key).unwrap(), peer_struct);
+        }
 
-        seed_peer_map = init_resp_msg.peer_map.clone();
+        
+    } else {
 
-        let mut peers = context.peers.lock().unwrap();
-
-        let peer_struct = Peer {
-            send: tx.clone(),
-            public_key: init_resp_msg.public_key,
-            peer_map: init_resp_msg.peer_map,
-        };
-
-        peers.insert(seed_address.clone(), peer_struct);
     }
 
     // Iterate over everything.
     for (adr, _key) in seed_peer_map {
         
+    }
+}
+
+fn key_to_string(key: &VerificationKey) -> Result<String, serde_json::Error> {
+    let result = serde_json::from_slice::<Value>(&key.to_bytes());
+    match result {
+        Ok(val) => Ok(val.to_string()),
+        Err(e) => Err(e)
     }
 }
 

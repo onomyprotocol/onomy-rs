@@ -6,6 +6,7 @@ use std::{
 use tokio::sync::mpsc::Sender;
 use tungstenite::Message;
 use ed25519_consensus::{VerificationKey};
+use serde_json::Value;
 
 
 // Phase 1: Peers will be added by direct API Request to validator
@@ -20,9 +21,8 @@ use ed25519_consensus::{VerificationKey};
 
 #[derive(Debug)]
 pub struct Peer {
-    pub send: Sender<Message>,
-    pub public_key: VerificationKey,
-    pub peer_map: HashMap<String, VerificationKey>,
+    pub sender: Sender<Message>,
+    pub peer_list: Vec<VerificationKey>,
 }
 
 pub type PeerMap = Arc<Mutex<HashMap<String, Peer>>>;

@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, net::SocketAddr, sync::Arc};
+use std::{collections::BTreeMap, net::SocketAddr};
 
 use derive_alias::derive_alias;
 use ed25519_consensus::{Signature, SigningKey, VerificationKey};

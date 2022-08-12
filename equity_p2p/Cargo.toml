@@ -8,4 +8,5 @@ publish = false
 tokio = { version = "1.19", features = ["full"] }
 tungstenite = "0.17"
 ed25519-consensus = "2"
+serde_json = "1.0"
 
