@@ -1,36 +1,20 @@
 use std::{collections::HashMap, net::SocketAddr};
 
-use ed25519_consensus::{Signature, VerificationKey};
-use equity_types::{ClientCommand, Credentials, EquityError, PeerCommand, TransactionBody, socket_to_ws};
+use ed25519_consensus::{VerificationKey};
+use equity_types::{ Credentials, EquityError, PeerCommand, TransactionBody, TransactionBroadcast::{ Init, Echo, Ready }, socket_to_ws };
 use futures::{SinkExt, StreamExt};
-use serde::{Deserialize, Serialize};
 use tokio::{
     net::{TcpListener, TcpStream},
     sync::mpsc::{channel, Sender},
     task::JoinHandle,
 };
+
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 use tracing::info;
-use equity_p2p::{Peer, PeerMap};
+use equity_p2p::Peer;
 use crate::service::Context;
 use crate::error::Error;
-
-use crate::TransactionBroadcastStage::{ Init, Echo, Ready };
-
-
-
-
-
-pub struct InitResponse {
-    peer_map: PeerMap,
-    public_key: VerificationKey,
-    hash: String,
-    signature: Signature,
-}
-
-
-
 
 pub async fn start_p2p_server(
     p2p_listener: SocketAddr,
@@ -89,25 +73,32 @@ async fn handle_connection(
 
     tokio::spawn(rx.map(Ok).forward(write));
 
-    let mut listener: String = "0.0.0.0:0000".to_string();
-
     if let Some(initial_msg) = read.next().await {
         let initial_msg = initial_msg.unwrap();
 
         let init_message: PeerCommand =
             serde_json::from_str(&initial_msg.into_text().unwrap()).unwrap();
-
-        listener = init_message.listener;
-
-        
-    while let Some(msg) = read.next().await {
-        println!("Received msg: {:?}", msg);
     }
+    
+    tokio::spawn(async move {
+        while let Some(Ok(msg)) = read.next().await {
+            let tx_clone = tx.clone();
+            // Need validation
+            let command: PeerCommand = serde_json::from_slice(&msg.into_data()).unwrap();
+            tokio::spawn(async move {
+                p2p_switch(
+                    command, 
+                    tx_clone, 
+                    context.clone()
+                )
+            });
+        }
+    });
+    Ok(())
 
     let mut peers = context.peers.lock().unwrap();
 
     peers.remove(&listener);
-    }
 }
 
 async fn initialize_network(
@@ -214,6 +205,9 @@ pub async fn peer_connection(peer_address: SocketAddr, context: &Context) -> Res
             });
         }
     });
+
+    // Add Cleanup function
+
     Ok(())
 }
 
@@ -223,7 +217,7 @@ async fn p2p_switch(
     context: Context
 ) {
     match peer_command {
-        PeerCommand::TransactionBroadcast { stage } => {
+        PeerCommand::TransactionBroadcast(stage) => {
             match stage {
                 Init { command } => {
 
@@ -235,6 +229,9 @@ async fn p2p_switch(
 
                 }
             }
+        },
+        PeerCommand::PeerInit { peer_list, public_key, signature } => {
+
         }
     }
 }

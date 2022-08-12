@@ -154,14 +154,17 @@ pub enum TransactionBody {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub enum PeerCommand {
-    TransactionBroadcast {
-        stage: TransactionBroadcastStage,
+    TransactionBroadcast(TransactionBroadcast),
+    PeerInit {
+        peer_list: Vec<VerificationKey>,
+        public_key: VerificationKey,
+        signature: Signature,
     }
 }
 
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub enum TransactionBroadcastStage {
+pub enum TransactionBroadcast {
     // Initializing a ClientCommand does not require a signature from the submitting peer
     Init {
         command: ClientCommand

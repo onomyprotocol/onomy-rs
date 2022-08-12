@@ -124,7 +124,7 @@ async fn client_switch(
                         return
                     }                
                     
-                    let response = transaction(&context, body2, hash, signature).await;
+                    let response = transaction(&context, body2, hash, public_key, signature).await;
                     sender
                         .send(Message::binary(serde_json::to_vec(&response)
                         .expect("msg does not have serde serialize trait"))).await.unwrap();
@@ -164,6 +164,7 @@ async fn transaction(
     context: &Context,
     body: TransactionBody,
     hash: String,
+    public_key: VerificationKey,
     signature: Signature
 ) -> PostTransactionResponse {
     info!(target = "equity-core", "Transaction API");
@@ -186,7 +187,7 @@ async fn transaction(
     let hash_verify = hash.clone();
     let signature_verify = signature.clone();
 
-    if let Ok(Err(e)) = spawn_blocking(move || verify_signature(&body_verify, &hash_verify, &signature_verify)).await {
+    if let Ok(Err(e)) = spawn_blocking(move || verify_signature(&body_verify, public_key, &signature_verify)).await {
         return PostTransactionResponse {
             success: false,
             msg: e.to_string(),
