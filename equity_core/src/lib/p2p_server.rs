@@ -76,29 +76,34 @@ async fn handle_connection(
     if let Some(initial_msg) = read.next().await {
         let initial_msg = initial_msg.unwrap();
 
-        let init_message: PeerCommand =
-            serde_json::from_str(&initial_msg.into_text().unwrap()).unwrap();
+        if let PeerCommand::PeerInit { peer_list, public_key, signature } =
+            serde_json::from_str(&initial_msg.into_text().unwrap()).unwrap() {
+
+            }
+
+        // Add Peer to list
     }
     
     tokio::spawn(async move {
         while let Some(Ok(msg)) = read.next().await {
             let tx_clone = tx.clone();
+            let context = context.clone();
             // Need validation
             let command: PeerCommand = serde_json::from_slice(&msg.into_data()).unwrap();
             tokio::spawn(async move {
                 p2p_switch(
                     command, 
                     tx_clone, 
-                    context.clone()
+                    context
                 )
             });
         }
     });
-    Ok(())
+    
 
-    let mut peers = context.peers.lock().unwrap();
+    // let mut peers = context.peers.lock().unwrap();
 
-    peers.remove(&listener);
+    // peers.remove(&listener);
 }
 
 async fn initialize_network(
@@ -132,7 +137,7 @@ async fn initialize_network(
     if let Some(init_resp_msg) = read.next().await {
         let init_resp_msg = init_resp_msg.unwrap();
 
-        let init_resp_msg: InitResponse =
+        let init_resp_msg: PeerInit =
             serde_json::from_str(&init_resp_msg.into_text().unwrap()).unwrap();
 
         seed_peer_map = init_resp_msg.peer_map.clone();
