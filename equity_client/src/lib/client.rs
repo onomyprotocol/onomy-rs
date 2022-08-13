@@ -8,7 +8,7 @@ use tokio_tungstenite::{connect_async, tungstenite::Message};
 
 use tokio::sync::mpsc::{Sender, channel};
 
-use equity_types::{Credentials, ClientCommand, TransactionBody, Keys};
+use equity_types::{ClientCommand, Credentials, Keys, TransactionBody, TransactionCommand};
 
 use rand::Rng;
 
@@ -20,9 +20,9 @@ use crate::Error;
 
 #[derive(Debug, Clone)]
 pub struct EquityClient {
-    sender: Sender<ClientCommand>,
-    credentials: Arc<Credentials>,
-    nonce: Arc<Mutex<u64>>
+    pub sender: Sender<ClientCommand>,
+    pub credentials: Arc<Credentials>,
+    pub nonce: Arc<Mutex<u64>>
 }
 
 impl EquityClient {
@@ -77,17 +77,14 @@ impl EquityClient {
         Ok(res)
     }
 
-    pub fn noncer(&mut self) {
-        let mut nonce = self.nonce.lock().unwrap();
-        *nonce += 1
-    }
+    
 
     pub async fn health(&self) {
         
     }
 
 
-    pub fn test_transaction(&self, key_domain: &u64, value_range: &u64, iterations: &u8) -> TransactionBody {
+    pub fn test_transaction(&self, key_domain: &u64, value_range: &u64, iterations: &u8) -> TransactionCommand {
         let mut rng = rand::thread_rng();
 
         // BTreeMap needed as keys are sorted vs HashMap
@@ -99,11 +96,7 @@ impl EquityClient {
             keys_values.insert(o, p);
         }
 
-        let nonce = self.nonce.lock().unwrap();
-
-        TransactionBody::SetValues {
-            public_key: self.credentials.public_key,
-            nonce: *nonce,
+        TransactionCommand::SetValues {
             keys_values
         }
     }

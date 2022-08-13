@@ -108,14 +108,23 @@ impl Credentials {
         (digest_string, signature)
     }
 
-    pub fn create_transaction(&self, message: &TransactionBody) -> ClientCommand {
-        let message_string = serde_json::to_string(message).unwrap();
+    pub fn create_client_transaction(&mut self, command: TransactionCommand) -> ClientCommand {
+        // Increment nonceS
+        self.nonce += 1;
+
+        let body = TransactionBody {
+            nonce: self.nonce,
+            public_key: self.public_key,
+            command
+        };
+
+        let message_string = serde_json::to_string(&body).unwrap();
     
-        let (digest_string, signature) = self.hash_sign(&message_string);
+        let (hash, signature) = self.hash_sign(&message_string);
     
         ClientCommand::Transaction {
-            body: message.clone(),
-            hash: digest_string,
+            body,
+            hash,
             signature,
         }
     }
@@ -139,15 +148,18 @@ pub enum ClientCommand {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub enum TransactionBody {
+pub struct TransactionBody {
+    nonce: u64,
+    public_key: VerificationKey,
+    command: TransactionCommand
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub enum TransactionCommand {
     SetValues {
-        public_key: VerificationKey,
-        nonce: u64,
         keys_values: BTreeMap<u64, u64>,
     },
     SetValidator {
-        public_key: VerificationKey,
-        nonce: u64,
         ws: SocketAddr
     }
 }

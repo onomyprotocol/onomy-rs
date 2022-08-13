@@ -178,6 +178,8 @@ pub fn initial_message(credentials: &Credentials, p2p_listener: SocketAddr) -> M
         ws: p2p_listener
     };
 
+    credentials.noncer();
+
     let transaction = credentials.create_transaction(&transaction_body);
 
     Message::binary(
