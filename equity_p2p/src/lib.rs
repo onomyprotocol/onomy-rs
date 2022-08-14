@@ -5,8 +5,7 @@ use std::{
 
 use tokio::sync::mpsc::Sender;
 use tungstenite::Message;
-use ed25519_consensus::{VerificationKey};
-use serde_json::Value;
+use ed25519_consensus::VerificationKey;
 
 
 // Phase 1: Peers will be added by direct API Request to validator

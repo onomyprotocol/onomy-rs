@@ -4,6 +4,7 @@
 resolver = "2"
 # note: there are scripts that need to be updated if new members are added
 members = [
+    "credentials",
     "equity_client",
     "equity_consensus",
     "equity_core",
