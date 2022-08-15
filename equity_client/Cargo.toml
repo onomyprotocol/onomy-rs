@@ -15,6 +15,7 @@ path = "src/bin/main.rs"
 [dependencies]
 equity_storage = { path = "../equity_storage" }
 equity_types = { path = "../equity_types" }
+credentials = { path = "../credentials" }
 
 
 bytemuck = { version = "1.9", default-features = false }

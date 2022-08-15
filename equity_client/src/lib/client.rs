@@ -8,13 +8,15 @@ use tokio_tungstenite::{connect_async, tungstenite::Message};
 
 use tokio::sync::mpsc::{Sender, channel};
 
-use equity_types::{ClientCommand, Credentials, Keys, TransactionBody, TransactionCommand};
+use equity_types::{ClientCommand, TransactionBody, TransactionCommand};
 
 use rand::Rng;
 
 use tokio_stream::wrappers::ReceiverStream;
 
 use tracing::info;
+
+use credentials::{Credentials, Keys};
 
 use crate::Error;
 
@@ -27,12 +29,8 @@ pub struct EquityClient {
 
 impl EquityClient {
     pub async fn new(ws_addr: &str, keys: Keys) -> Result<Self, Error> {
-        let credentials;
-
-        match keys {
-            Keys::Empty => credentials = Credentials::new(),
-            Keys::Is(value) => credentials = value,
-        }
+        
+        let credentials = Credentials::new(keys);
 
         let (ws_stream, _) = connect_async(ws_addr)
         .await
@@ -109,6 +107,25 @@ impl EquityClient {
         ClientCommand::Transaction {
             body: message.clone(),
             hash: digest_string,
+            signature,
+        }
+    }
+
+    pub fn create_client_transaction(&mut self, command: TransactionCommand) -> ClientCommand {
+        
+        let body = TransactionBody {
+            nonce: self.nonce,
+            public_key: self.public_key,
+            command
+        };
+
+        let message_string = serde_json::to_string(&body).unwrap();
+    
+        let (hash, signature) = self.hash_sign(&message_string);
+    
+        ClientCommand::Transaction {
+            body,
+            hash,
             signature,
         }
     }

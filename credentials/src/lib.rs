@@ -4,7 +4,14 @@ use tokio::sync::oneshot;
 use ed25519_consensus::{Signature, SigningKey, VerificationKey};
 use equity_types::MsgType;
 
-// The HashMap
+#[derive(Debug, Clone)]
+pub enum Keys {
+    Empty,
+    Is({
+        private_key: SigningKey,
+        public_key: VerificationKey
+    })
+}
 
 #[derive(Debug, Clone)]
 pub struct Credentials {
@@ -13,7 +20,7 @@ pub struct Credentials {
 }
 
 impl Credentials {
-    pub fn new() -> Brb {
+    pub fn new(keys: Keys) -> Credentials {
         let (tx, mut rx) = mpsc::channel(1000);
 
         let signer = Internal::new();
@@ -37,17 +44,15 @@ impl Credentials {
 
                             let signature = signer.private_key.sign(digest_string.as_bytes());
 
-                            (digest_string, signature)
-
-
-                            resp.send(Some(sender.clone())).unwrap();
+                            resp.send(Some((digest_string, signature))).unwrap();
                         }
                     }
                 }
             }
         );
-        
+
         Self {
+            public_key: signer.public_key,
             sender: tx
         }
     }
@@ -79,14 +84,27 @@ struct Internal {
 
 impl Internal {
     fn new() -> Internal {
-        let sk = SigningKey::new(thread_rng());
-        let vk = VerificationKey::from(&sk);
 
-        Self {
-            private_key: sk,
-            public_key: vk,
-            nonce: 1,
+        match keys {
+            Keys::Empty => {
+                let sk = SigningKey::new(thread_rng());
+                let vk = VerificationKey::from(&sk);
+
+                Self {
+                    private_key: sk,
+                    public_key: vk,
+                    nonce: 1,
+                }
+            },
+            Keys::Is(value) => {
+                Self {
+                    private_key: value.private_key,
+                    public_key: value.public_key,
+                    nonce: 1
+                }
+            },
         }
+        
     }
 
     fn sign()
