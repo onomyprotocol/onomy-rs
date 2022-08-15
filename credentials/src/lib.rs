@@ -29,7 +29,7 @@ impl Credentials {
             {
                 while let Some(cmd) = rx.recv().await {
                     
-                    signer = signer.clone();
+                    // signer = signer.clone();
 
                     match cmd {
                         Command::Sign { msg, resp } => {
@@ -96,10 +96,10 @@ impl Internal {
                     nonce: 1,
                 }
             },
-            Keys::Is(value) => {
+            Keys::Is(cred) => {
                 Self {
-                    private_key: value.private_key,
-                    public_key: value.public_key,
+                    private_key: cred.private_key,
+                    public_key: cred.public_key,
                     nonce: 1
                 }
             },

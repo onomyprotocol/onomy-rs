@@ -57,6 +57,12 @@ impl Brb {
         rx.await.unwrap()
     }
 
+    async fn set(&self, hash: &String, sender: mpsc::Sender<BrbMsg>) -> bool {
+        let (tx, rx) = oneshot::channel();
+        self.sender.send(BrbCommand::Set { key: hash.clone(), val: sender, resp: tx }).await.unwrap();
+        rx.await.unwrap()
+    }
+
     // All BRB broadcast messages are either initiated or received.
     // Initiation is prompted by out of network messages (client / new validator) or enabled consensus condition.
     // All in-network messages are Received as part of Brb Broadcast
@@ -68,20 +74,26 @@ impl Brb {
             brb_sender.send(BrbMsg::Echo{
                 hash: hash.clone(),
                 peer,
-                msg
+                msg: msg.clone()
             }).await.unwrap()
         }
         
         let (brb_tx, mut brb_rx) = mpsc::channel(1000);
         let (brb_one_tx, brb_one_rx) = oneshot::channel();
-        
+        let hash2 = hash.clone(); 
         tokio::spawn(async move
             {
+                let internal = BrbInternal {
+                    hash: hash.clone(),
+                    msg,
+                    init: true,
+                    echo: Vec::new(),
+                    ready: Vec::new(),
+                    commit: false
+                };
+
                 while let Some(brb_msg) = brb_rx.recv().await {
                     match brb_msg {
-                        BrbMsg::Init { hash, peer, msg } => {
-                            
-                        }
                         BrbMsg::Echo { hash, peer, msg } => {
                             
                         }
@@ -95,20 +107,10 @@ impl Brb {
             }
         );
 
-        let (one_tx, one_rx) = oneshot::channel();
-
-        self.sender.send(BrbCommand::Set
-            {
-                key: hash, 
-                val: brb_tx, 
-                resp: one_tx
-            }
-        ).await.unwrap();
-
-        match one_rx.await {
-            Ok(v) => println!("got = {:?}", v),
-            Err(_) => println!("the sender dropped"),
-        }
+        match self.set(&hash2, brb_tx).await {
+            true => println!("Initiated BRB {}", &hash2),
+            false => println!("Failed to initiate BRB {}", &hash2)
+        };
 
         match brb_one_rx.await {
             Ok(v) => println!("got = {:?}", v),
@@ -141,12 +143,10 @@ enum BrbCommand {
 #[derive(Debug)]
 enum BrbMsg {
     Init {
-        hash: String,
         peer: VerificationKey,
         msg: MsgType
     },
     Echo {
-        hash: String,
         peer: VerificationKey,
         msg: MsgType
     },
@@ -159,11 +159,16 @@ enum BrbMsg {
 pub struct BrbInternal {
     hash: String,
     msg: MsgType,
-    signature: Signature,
     init: bool,
     echo: Vec<VerificationKey>,
     ready: Vec<VerificationKey>,
     commit: bool
+}
+
+impl BrbInternal {
+    fn init (hash: String, msg: MsgType, signature: Signature) {
+
+    } 
 }
 
 /// Provided by the requester and used by the manager task to send

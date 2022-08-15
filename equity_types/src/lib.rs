@@ -1,13 +1,7 @@
 use std::{collections::BTreeMap, net::SocketAddr};
-
 use derive_alias::derive_alias;
-use ed25519_consensus::{Signature, SigningKey, VerificationKey};
-use rand::thread_rng;
+use ed25519_consensus::{Signature, VerificationKey};
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha512};
-
-
-
 
 // TODO common derive macro
 
@@ -121,7 +115,7 @@ pub enum TransactionBroadcast {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum MsgType {
     Client(ClientCommand),
     Peer(PeerCommand)

@@ -121,7 +121,7 @@ impl EquityClient {
 
         let message_string = serde_json::to_string(&body).unwrap();
     
-        let (hash, signature) = self.hash_sign(&message_string);
+        let (hash, signature) = self.credentials.sign(&message_string);
     
         ClientCommand::Transaction {
             body,

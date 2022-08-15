@@ -107,7 +107,7 @@ async fn client_switch(
     sender: Sender<Message>,
     context: Context
 ) {
-    let client_command2 = client_command.clone();
+    // let client_command2 = client_command.clone();
     match client_command {
         ClientCommand::Health { } => {
             let response = health();
@@ -116,11 +116,10 @@ async fn client_switch(
                 .expect("msg does not have serde serialize trait"))).await.unwrap();
         },
         ClientCommand::Transaction{ body, hash, signature } => {
-            let body2 = body.clone();
             
             match body {
-                SetValues { public_key, nonce, keys_values } => {
-                    if let Error = verify_signature(&body2, public_key, &signature) {
+                SetValues { public_key, nonce, keys_values, command } => {
+                    if let Error = verify_signature(&body, public_key, &signature) {
                         return
                     }                
                     
@@ -129,8 +128,8 @@ async fn client_switch(
                         .send(Message::binary(serde_json::to_vec(&response)
                         .expect("msg does not have serde serialize trait"))).await.unwrap();
                 },
-                SetValidator { public_key, nonce, ws } => {
-                    if let Error = verify_signature(&body2, public_key, &signature) {
+                SetValidator { public_key, nonce, ws, command } => {
+                    if let Error = verify_signature(&body, public_key, &signature) {
                         return
                     } 
 
@@ -143,7 +142,7 @@ async fn client_switch(
                     // The task will need to hold the Command and anything else related
                     match connection {
                         Ok(()) => {
-                            context.brb.initiate(hash, public_key,  MsgType::Client(client_command2));
+                            context.brb.initiate(hash, public_key,  MsgType::Client(client_command));
                         },
                         Error => {
                             return
