@@ -2,6 +2,7 @@ use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 use ed25519_consensus::{Signature, SigningKey, VerificationKey};
 use sha2::{Digest, Sha512};
+use rand::thread_rng;
 
 #[derive(Debug, Clone)]
 pub struct KeyPair {
@@ -27,24 +28,16 @@ impl Credentials {
 
         let signer = Internal::new(keys);
 
+        let signer_spawn = signer.clone();
+
         tokio::spawn(async move
             {
                 while let Some(cmd) = rx.recv().await {
                     
-                    // signer = signer.clone();
-
                     match cmd {
                         Command::Sign { msg, resp } => {
                             
-                            // Hash + Signature operation may be considered blocking
-
-                            let mut digest: Sha512 = Sha512::new();
-                            
-                            digest.update(msg);
-
-                            let hash: String = format!("{:X}", digest.finalize());
-
-                            let signature = signer.private_key.sign(digest_string.as_bytes());
+                            let (hash, signature) = signer_spawn.sign(msg);
 
                             resp.send(
                                 Some(
@@ -68,9 +61,11 @@ impl Credentials {
 
     async fn sign(&self, msg: &String) -> Option<(String, Signature)> {
         let (tx, rx) = oneshot::channel();
-        self.sender.send(Command::Sign { msg: msg, resp: tx }).await.unwrap();
-        let if Some((hash, signature)) = rx.await.unwrap() {
-
+        self.sender.send(Command::Sign { msg: msg.clone(), resp: tx }).await.unwrap();
+        if let Some(Response::Sign{hash, signature}) = rx.await.unwrap() {
+            Some((hash, signature))
+        } else {
+            None
         }
     }
 }
@@ -86,7 +81,7 @@ enum Command {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct Internal {
     pub private_key: SigningKey,
     pub public_key: VerificationKey,
@@ -118,7 +113,18 @@ impl Internal {
         
     }
 
-    fn sign()
+    fn sign(&self, message: String) -> (String, Signature) {
+        // Hash + Signature operation may be considered blocking
+        let mut digest: Sha512 = Sha512::new();
+        
+        digest.update(message);
+
+        let hash: String = format!("{:X}", digest.clone().finalize());
+
+        let signature: Signature = self.private_key.sign(hash.as_bytes());
+
+        (hash, signature)
+    }
 }
 
 #[derive(Debug)]

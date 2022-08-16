@@ -203,6 +203,7 @@ version = "0.1.0"
 dependencies = [
  "ed25519-consensus",
  "equity_types",
+ "rand",
  "sha2 0.10.2",
  "tokio",
 ]
