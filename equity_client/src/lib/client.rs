@@ -23,8 +23,7 @@ use crate::Error;
 #[derive(Debug, Clone)]
 pub struct EquityClient {
     pub sender: Sender<ClientCommand>,
-    pub credentials: Arc<Credentials>,
-    pub nonce: Arc<Mutex<u64>>
+    pub credentials: Arc<Credentials>
 }
 
 impl EquityClient {
@@ -66,8 +65,7 @@ impl EquityClient {
 
         let res = Self {
             sender: tx,
-            credentials: Arc::new(credentials),
-            nonce: Arc::new(Mutex::new(1))
+            credentials: Arc::new(credentials)
         };
         
 
@@ -99,33 +97,14 @@ impl EquityClient {
         }
     }
 
-    pub fn create_transaction(&self, message: &TransactionBody) -> ClientCommand {
+    pub async fn create_transaction(&self, message: &TransactionBody) -> ClientCommand {
         let message_string = serde_json::to_string(message).unwrap();
 
-        let (digest_string, signature) = self.credentials.hash_sign(&message_string);
+        let (digest_string, signature) = self.credentials.sign(&message_string).await.unwrap();
 
         ClientCommand::Transaction {
             body: message.clone(),
             hash: digest_string,
-            signature,
-        }
-    }
-
-    pub fn create_client_transaction(&mut self, command: TransactionCommand) -> ClientCommand {
-        
-        let body = TransactionBody {
-            nonce: self.nonce,
-            public_key: self.public_key,
-            command
-        };
-
-        let message_string = serde_json::to_string(&body).unwrap();
-    
-        let (hash, signature) = self.credentials.sign(&message_string);
-    
-        ClientCommand::Transaction {
-            body,
-            hash,
             signature,
         }
     }

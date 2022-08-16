@@ -1,3 +1,5 @@
+use equity_types::TransactionBody;
+use equity_types::TransactionCommand;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 use ed25519_consensus::{Signature, SigningKey, VerificationKey};
@@ -59,7 +61,7 @@ impl Credentials {
         }
     }
 
-    async fn sign(&self, msg: &String) -> Option<(String, Signature)> {
+    pub async fn sign(&self, msg: &String) -> Option<(String, Signature)> {
         let (tx, rx) = oneshot::channel();
         self.sender.send(Command::Sign { msg: msg.clone(), resp: tx }).await.unwrap();
         if let Some(Response::Sign{hash, signature}) = rx.await.unwrap() {
@@ -68,6 +70,10 @@ impl Credentials {
             None
         }
     }
+
+    pub fn client_transaction(&mut self, command: TransactionCommand) -> ClientCommand {
+        
+        
 }
 
 /// Multiple different commands are multiplexed over a single channel.
@@ -124,6 +130,24 @@ impl Internal {
         let signature: Signature = self.private_key.sign(hash.as_bytes());
 
         (hash, signature)
+    }
+
+    fn client_transaction(mut &self, command: TransactionCommand) -> TransactionBody {
+        let body = TransactionBody {
+            nonce: self.nonce,
+            public_key: self.public_key,
+            command
+        };
+
+        let message_string = serde_json::to_string(&body).unwrap();
+
+        let (hash, signature) = self.credentials.sign(&message_string);
+
+        ClientCommand::Transaction {
+            body,
+            hash,
+            signature,
+        }
     }
 }
 
