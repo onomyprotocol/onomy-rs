@@ -1,16 +1,18 @@
-use std::collections::HashMap;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 use ed25519_consensus::{Signature, SigningKey, VerificationKey};
-use equity_types::MsgType;
+use sha2::{Digest, Sha512};
+
+#[derive(Debug, Clone)]
+pub struct KeyPair {
+    private_key: SigningKey,
+    public_key: VerificationKey
+}
 
 #[derive(Debug, Clone)]
 pub enum Keys {
     Empty,
-    Is({
-        private_key: SigningKey,
-        public_key: VerificationKey
-    })
+    Is(KeyPair)
 }
 
 #[derive(Debug, Clone)]
@@ -23,7 +25,7 @@ impl Credentials {
     pub fn new(keys: Keys) -> Credentials {
         let (tx, mut rx) = mpsc::channel(1000);
 
-        let signer = Internal::new();
+        let signer = Internal::new(keys);
 
         tokio::spawn(async move
             {
@@ -40,11 +42,18 @@ impl Credentials {
                             
                             digest.update(msg);
 
-                            let digest_string: String = format!("{:X}", digest.finalize());
+                            let hash: String = format!("{:X}", digest.finalize());
 
                             let signature = signer.private_key.sign(digest_string.as_bytes());
 
-                            resp.send(Some((digest_string, signature))).unwrap();
+                            resp.send(
+                                Some(
+                                    Response::Sign { 
+                                        hash, 
+                                        signature
+                                    }
+                                )
+                            ).unwrap()
                         }
                     }
                 }
@@ -60,7 +69,9 @@ impl Credentials {
     async fn sign(&self, msg: &String) -> Option<(String, Signature)> {
         let (tx, rx) = oneshot::channel();
         self.sender.send(Command::Sign { msg: msg, resp: tx }).await.unwrap();
-        rx.await.unwrap()
+        let if Some((hash, signature)) = rx.await.unwrap() {
+
+        }
     }
 }
 
@@ -71,7 +82,7 @@ impl Credentials {
 enum Command {
     Sign {
         msg: String,
-        resp: Responder<Option<mpsc::Sender<Response>>>,
+        resp: Responder<Option<Response>>,
     }
 }
 
@@ -83,7 +94,7 @@ struct Internal {
 }
 
 impl Internal {
-    fn new() -> Internal {
+    fn new(keys: Keys) -> Internal {
 
         match keys {
             Keys::Empty => {
