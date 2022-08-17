@@ -105,8 +105,8 @@ async fn client_switch(
     sender: Sender<Message>,
     context: Context
 ) {
-    // let client_command2 = client_command.clone();
-    match client_command {
+    // let client_command_clone = client_command.clone();
+    match &client_command {
         ClientMsg::Health { } => {
             let response = health();
             sender
@@ -114,22 +114,18 @@ async fn client_switch(
                 .expect("msg does not have serde serialize trait"))).await.unwrap();
         },
         ClientMsg::Transaction{ body, hash, signature } => {
-            
-            match body.command {
+            if let Error = verify_signature(&body, &body.public_key, &signature) {
+                return
+            }
+            match &body.command {
                 TransactionCommand::SetValues { keys_values } => {
-                    if let Error = verify_signature(&body, &body.public_key, &signature) {
-                        return
-                    }                
-                    
                     let response = transaction(&context, body, hash, body.public_key, signature).await;
                     sender
                         .send(Message::binary(serde_json::to_vec(&response)
                         .expect("msg does not have serde serialize trait"))).await.unwrap();
                 },
                 TransactionCommand::SetValidator { ws } => {
-                    if let Error = verify_signature(&body, &body.public_key, &signature) {
-                        return
-                    } 
+                     
 
                     // 1) Connect
                     let connection = peer_connection(ws, &context).await;

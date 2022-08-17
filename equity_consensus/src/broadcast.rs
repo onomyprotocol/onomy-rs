@@ -66,7 +66,7 @@ impl Brb {
     // All BRB broadcast messages are either initiated or received.
     // Initiation is prompted by out of network messages (client / new validator) or enabled consensus condition.
     // All in-network messages are Received as part of Brb Broadcast
-    pub async fn initiate (&self, hash: String, peer: VerificationKey, msg: Msg) {
+    pub async fn initiate (&self, hash: &String, peer: VerificationKey, msg: Msg) {
         // First need to check if there is already an initiated BRB instance with this same hash
         if let Some(brb_sender) = self.get(&hash).await {
             // BRB manager exists then treat as Echo
@@ -83,7 +83,7 @@ impl Brb {
         tokio::spawn(async move
             {
                 let internal = BrbInternal {
-                    hash: hash.clone(),
+                    hash: hash2,
                     msg,
                     init: true,
                     echo: Vec::new(),
@@ -109,9 +109,9 @@ impl Brb {
             }
         );
 
-        match self.set(&hash2, brb_tx).await {
-            true => println!("Initiated BRB {}", &hash2),
-            false => println!("Failed to initiate BRB {}", &hash2)
+        match self.set(&hash, brb_tx).await {
+            true => println!("Initiated BRB {}", &hash),
+            false => println!("Failed to initiate BRB {}", &hash)
         };
 
         match brb_one_rx.await {

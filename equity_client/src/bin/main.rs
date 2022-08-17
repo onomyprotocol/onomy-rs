@@ -49,7 +49,7 @@ pub async fn main() {
             println!("DB Key Range: {:?}", value_range);
             println!("Iterations: {:?}", iterations);
             let tester = client.test_transaction(key_domain, value_range, iterations);
-            let transaction = client.credentials.transaction(tester).await.unwrap();
+            let transaction = client.credentials.transaction(&tester).await.unwrap();
             client.send_transaction(transaction).await;
             thread::sleep(time::Duration::from_secs(5));
             info!("Transaction submitted");
