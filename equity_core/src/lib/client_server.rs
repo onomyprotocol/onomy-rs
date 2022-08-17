@@ -4,7 +4,7 @@ use ed25519_consensus::{Signature, VerificationKey};
 
 use equity_types::{
     EquityError, HealthResponse,
-    PostTransactionResponse, ClientCommand, TransactionBody
+    PostTransactionResponse, ClientMsg, TransactionBody
 };
 
 use equity_types::TransactionBody::{ SetValues, SetValidator };
@@ -92,7 +92,7 @@ async fn handle_connection(
 
     while let Some(Ok(msg)) = read.next().await {
         let tx_clone = tx.clone();
-        let command: ClientCommand = serde_json::from_slice(&msg.into_data()).unwrap();
+        let command: ClientMsg = serde_json::from_slice(&msg.into_data()).unwrap();
         tokio::spawn(
             client_switch(
                 command, 
@@ -103,19 +103,19 @@ async fn handle_connection(
 }
 
 async fn client_switch(
-    client_command: ClientCommand, 
+    client_command: ClientMsg, 
     sender: Sender<Message>,
     context: Context
 ) {
     // let client_command2 = client_command.clone();
     match client_command {
-        ClientCommand::Health { } => {
+        ClientMsg::Health { } => {
             let response = health();
             sender
                 .send(Message::binary(serde_json::to_vec(&response)
                 .expect("msg does not have serde serialize trait"))).await.unwrap();
         },
-        ClientCommand::Transaction{ body, hash, signature } => {
+        ClientMsg::Transaction{ body, hash, signature } => {
             
             match body {
                 SetValues { public_key, nonce, keys_values, command } => {

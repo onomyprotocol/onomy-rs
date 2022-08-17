@@ -63,7 +63,7 @@ pub enum EquityError {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub enum ClientCommand {
+pub enum ClientMsg {
     Health {
     },
     Transaction {
@@ -91,8 +91,7 @@ pub enum TransactionCommand {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub enum PeerCommand {
-    TransactionBroadcast(TransactionBroadcast),
+pub enum PeerMsg {
     PeerInit {
         peer_list: Vec<VerificationKey>,
         public_key: VerificationKey,
@@ -102,23 +101,24 @@ pub enum PeerCommand {
 
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub enum TransactionBroadcast {
-    // Initializing a ClientCommand does not require a signature from the submitting peer
+pub enum Broadcast {
     Init {
-        command: ClientCommand
+        msg: Msg,
+        public_key: VerificationKey,
+        signature: Signature
     },    
     Echo {
-        command: ClientCommand
+        msg: Msg
     },
     Ready {
         hash: String
     }
 }
 
-#[derive(Debug, Clone)]
-pub enum MsgType {
-    Client(ClientCommand),
-    Peer(PeerCommand)
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub enum Msg {
+    Client(ClientMsg),
+    Peer(PeerMsg)
 }
 
 

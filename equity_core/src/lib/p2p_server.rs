@@ -1,7 +1,7 @@
 use std::{collections::HashMap, net::SocketAddr};
 
 use ed25519_consensus::{VerificationKey};
-use equity_types::{ Credentials, EquityError, PeerCommand, TransactionBody, TransactionBroadcast::{ Init, Echo, Ready }, socket_to_ws };
+use equity_types::{ Credentials, EquityError, PeerMsg, TransactionBody, TransactionBroadcast::{ Init, Echo, Ready }, socket_to_ws };
 use futures::{SinkExt, StreamExt};
 use tokio::{
     net::{TcpListener, TcpStream},
@@ -78,7 +78,7 @@ async fn handle_connection(
     if let Some(initial_msg) = read.next().await {
         let initial_msg = initial_msg.unwrap();
 
-        if let PeerCommand::PeerInit { peer_list, public_key, signature } =
+        if let PeerMsg::PeerInit { peer_list, public_key, signature } =
             serde_json::from_str(&initial_msg.into_text().unwrap()).unwrap() {
 
             }
@@ -91,7 +91,7 @@ async fn handle_connection(
             let tx_clone = tx.clone();
             let context = context.clone();
             // Need validation
-            let command: PeerCommand = serde_json::from_slice(&msg.into_data()).unwrap();
+            let command: PeerMsg = serde_json::from_slice(&msg.into_data()).unwrap();
             tokio::spawn(async move {
                 p2p_switch(
                     command, 
@@ -119,7 +119,7 @@ async fn initialize_network(
 
     println!("WebSocket handshake has been successfully completed");
     
-    // Send ClientCommand
+    // Send ClientMsg
     ws_stream
         .send(initial_message(&context.credentials, p2p_listener))
         .await
@@ -137,7 +137,7 @@ async fn initialize_network(
     let mut seed_peer_map: HashMap<String, VerificationKey> = HashMap::new();
 
     if let Some(Ok(init_msg)) = read.next().await {
-        if let PeerCommand::PeerInit { peer_list, public_key, signature } =
+        if let PeerMsg::PeerInit { peer_list, public_key, signature } =
             serde_json::from_str(&init_msg.into_text().unwrap()).unwrap() {
             
             
@@ -195,7 +195,7 @@ pub async fn peer_connection(peer_address: SocketAddr, context: &Context) -> Res
 
     println!("WebSocket handshake has been successfully completed");
     
-    // Send ClientCommand
+    // Send ClientMsg
     ws_stream
         .send(initial_message(&context.credentials, p2p_listener))
         .await
@@ -214,7 +214,7 @@ pub async fn peer_connection(peer_address: SocketAddr, context: &Context) -> Res
         while let Some(Ok(msg)) = read.next().await {
             let tx_clone = tx.clone();
             // Need validation
-            let command: PeerCommand = serde_json::from_slice(&msg.into_data()).unwrap();
+            let command: PeerMsg = serde_json::from_slice(&msg.into_data()).unwrap();
             tokio::spawn(async move {
                 p2p_switch(
                     command, 
@@ -231,12 +231,12 @@ pub async fn peer_connection(peer_address: SocketAddr, context: &Context) -> Res
 }
 
 async fn p2p_switch(
-    peer_command: PeerCommand, 
+    peer_command: PeerMsg, 
     sender: Sender<Message>,
     context: Context
 ) {
     match peer_command {
-        PeerCommand::TransactionBroadcast(stage) => {
+        PeerMsg::TransactionBroadcast(stage) => {
             match stage {
                 Init { command } => {
 
@@ -249,7 +249,7 @@ async fn p2p_switch(
                 }
             }
         },
-        PeerCommand::PeerInit { peer_list, public_key, signature } => {
+        PeerMsg::PeerInit { peer_list, public_key, signature } => {
 
         }
     }

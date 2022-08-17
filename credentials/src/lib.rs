@@ -1,10 +1,10 @@
-use equity_types::TransactionBody;
-use equity_types::TransactionCommand;
+use equity_types::{ TransactionBody, TransactionCommand, ClientMsg };
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 use ed25519_consensus::{Signature, SigningKey, VerificationKey};
 use sha2::{Digest, Sha512};
 use rand::thread_rng;
+use serde_json;
 
 #[derive(Debug, Clone)]
 pub struct KeyPair {
@@ -49,6 +49,18 @@ impl Credentials {
                                     }
                                 )
                             ).unwrap()
+                        },
+                        Command::Transaction { command, resp } => {
+                            
+                            let msg = signer_spawn.transaction(command);
+
+                            resp.send(
+                                Some(
+                                    Response::Transaction { 
+                                        msg
+                                    }
+                                )
+                            ).unwrap()
                         }
                     }
                 }
@@ -62,8 +74,8 @@ impl Credentials {
     }
 
     pub async fn sign(&self, msg: &String) -> Option<(String, Signature)> {
-        let (tx, rx) = oneshot::channel();
-        self.sender.send(Command::Sign { msg: msg.clone(), resp: tx }).await.unwrap();
+        let (resp, rx) = oneshot::channel();
+        self.sender.send(Command::Sign { msg: msg.clone(), resp }).await.unwrap();
         if let Some(Response::Sign{hash, signature}) = rx.await.unwrap() {
             Some((hash, signature))
         } else {
@@ -71,9 +83,15 @@ impl Credentials {
         }
     }
 
-    pub fn client_transaction(&mut self, command: TransactionCommand) -> ClientCommand {
-        
-        
+    pub async fn transaction(self, command: TransactionCommand) -> Option<ClientMsg> {
+        let (resp, rx) = oneshot::channel();
+        self.sender.send(Command::Transaction { command, resp }).await.unwrap();
+        if let Some(Response::Transaction{msg}) = rx.await.unwrap() {
+            Some(msg)
+        } else {
+            None
+        }
+    }
 }
 
 /// Multiple different commands are multiplexed over a single channel.
@@ -84,8 +102,27 @@ enum Command {
     Sign {
         msg: String,
         resp: Responder<Option<Response>>,
+    },
+    Transaction {
+        command: TransactionCommand,
+        resp: Responder<Option<Response>>
     }
 }
+
+#[derive(Debug)]
+enum Response {
+    Sign {
+        hash: String,
+        signature: Signature
+    },
+    Transaction {
+        msg: ClientMsg
+    }
+}
+
+/// Provided by the requester and used by the manager task to send
+/// the command response back to the requester.
+type Responder<T> = oneshot::Sender<T>;
 
 #[derive(Debug, Clone)]
 struct Internal {
@@ -132,7 +169,7 @@ impl Internal {
         (hash, signature)
     }
 
-    fn client_transaction(mut &self, command: TransactionCommand) -> TransactionBody {
+    fn transaction(mut self, command: TransactionCommand) -> ClientMsg {
         let body = TransactionBody {
             nonce: self.nonce,
             public_key: self.public_key,
@@ -143,7 +180,7 @@ impl Internal {
 
         let (hash, signature) = self.credentials.sign(&message_string);
 
-        ClientCommand::Transaction {
+        ClientMsg::Transaction {
             body,
             hash,
             signature,
@@ -151,14 +188,4 @@ impl Internal {
     }
 }
 
-#[derive(Debug)]
-enum Response {
-    Sign {
-        hash: String,
-        signature: Signature
-    }
-}
 
-/// Provided by the requester and used by the manager task to send
-/// the command response back to the requester.
-type Responder<T> = oneshot::Sender<T>;

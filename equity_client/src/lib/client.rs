@@ -8,7 +8,7 @@ use tokio_tungstenite::{connect_async, tungstenite::Message};
 
 use tokio::sync::mpsc::{Sender, channel};
 
-use equity_types::{ClientCommand, TransactionBody, TransactionCommand};
+use equity_types::{ClientMsg, TransactionBody, TransactionCommand};
 
 use rand::Rng;
 
@@ -22,7 +22,7 @@ use crate::Error;
 
 #[derive(Debug, Clone)]
 pub struct EquityClient {
-    pub sender: Sender<ClientCommand>,
+    pub sender: Sender<ClientMsg>,
     pub credentials: Arc<Credentials>
 }
 
@@ -40,7 +40,7 @@ impl EquityClient {
         let (mut write, mut read) = ws_stream.split();
 
         // Insert the write part of this peer to the peer map.
-        let (tx, rx) = channel::<ClientCommand>(1000);
+        let (tx, rx) = channel::<ClientMsg>(1000);
         
         let mut rx = ReceiverStream::new(rx);
 
@@ -97,21 +97,9 @@ impl EquityClient {
         }
     }
 
-    pub async fn create_transaction(&self, message: &TransactionBody) -> ClientCommand {
-        let message_string = serde_json::to_string(message).unwrap();
-
-        let (digest_string, signature) = self.credentials.sign(&message_string).await.unwrap();
-
-        ClientCommand::Transaction {
-            body: message.clone(),
-            hash: digest_string,
-            signature,
-        }
-    }
-
     pub async fn send_transaction(
         &self,
-        transaction: ClientCommand,
+        transaction: ClientMsg,
     ) {
       self.sender.send(transaction).await.expect("Channel failed");  
     }
