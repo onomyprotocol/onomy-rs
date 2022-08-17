@@ -83,7 +83,8 @@ impl Credentials {
         }
     }
 
-    pub async fn transaction(self, command: TransactionCommand) -> Option<ClientMsg> {
+    pub async fn transaction(&self, command: &TransactionCommand) -> Option<ClientMsg> {
+        let command = command.clone();
         let (resp, rx) = oneshot::channel();
         self.sender.send(Command::Transaction { command, resp }).await.unwrap();
         if let Some(Response::Transaction{msg}) = rx.await.unwrap() {
@@ -169,7 +170,7 @@ impl Internal {
         (hash, signature)
     }
 
-    fn transaction(mut self, command: TransactionCommand) -> ClientMsg {
+    fn transaction(&self, command: TransactionCommand) -> ClientMsg {
         let body = TransactionBody {
             nonce: self.nonce,
             public_key: self.public_key,
@@ -178,7 +179,7 @@ impl Internal {
 
         let message_string = serde_json::to_string(&body).unwrap();
 
-        let (hash, signature) = self.credentials.sign(&message_string);
+        let (hash, signature) = self.sign(message_string);
 
         ClientMsg::Transaction {
             body,

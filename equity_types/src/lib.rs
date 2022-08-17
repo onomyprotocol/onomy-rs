@@ -75,9 +75,9 @@ pub enum ClientMsg {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct TransactionBody {
-    nonce: u64,
-    public_key: VerificationKey,
-    command: TransactionCommand
+    pub nonce: u64,
+    pub public_key: VerificationKey,
+    pub command: TransactionCommand
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

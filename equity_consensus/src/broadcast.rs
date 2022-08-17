@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 use ed25519_consensus::{Signature, VerificationKey};
-use equity_types::MsgType;
+use equity_types::Msg;
 
 // The HashMap
 
@@ -66,13 +66,12 @@ impl Brb {
     // All BRB broadcast messages are either initiated or received.
     // Initiation is prompted by out of network messages (client / new validator) or enabled consensus condition.
     // All in-network messages are Received as part of Brb Broadcast
-    pub async fn initiate (&self, hash: String, peer: VerificationKey, msg: MsgType) {
+    pub async fn initiate (&self, hash: String, peer: VerificationKey, msg: Msg) {
         // First need to check if there is already an initiated BRB instance with this same hash
         if let Some(brb_sender) = self.get(&hash).await {
             // BRB manager exists then treat as Echo
             // Need to define below how to use Echo before completing this part.
             brb_sender.send(BrbMsg::Echo{
-                hash: hash.clone(),
                 peer,
                 msg: msg.clone()
             }).await.unwrap()
@@ -94,7 +93,10 @@ impl Brb {
 
                 while let Some(brb_msg) = brb_rx.recv().await {
                     match brb_msg {
-                        BrbMsg::Echo { hash, peer, msg } => {
+                        BrbMsg::Init { peer, msg } => {
+                            
+                        }
+                        BrbMsg::Echo { peer, msg } => {
                             
                         }
                         BrbMsg::Ready { hash } => {
@@ -144,11 +146,11 @@ enum BrbCommand {
 enum BrbMsg {
     Init {
         peer: VerificationKey,
-        msg: MsgType
+        msg: Msg
     },
     Echo {
         peer: VerificationKey,
-        msg: MsgType
+        msg: Msg
     },
     Ready {
         hash: String
@@ -158,7 +160,7 @@ enum BrbMsg {
 #[derive(Debug)]
 pub struct BrbInternal {
     hash: String,
-    msg: MsgType,
+    msg: Msg,
     init: bool,
     echo: Vec<VerificationKey>,
     ready: Vec<VerificationKey>,
@@ -166,7 +168,7 @@ pub struct BrbInternal {
 }
 
 impl BrbInternal {
-    fn init (hash: String, msg: MsgType, signature: Signature) {
+    fn init (hash: String, msg: Msg, signature: Signature) {
 
     } 
 }

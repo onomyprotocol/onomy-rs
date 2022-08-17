@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, sync::{Arc, Mutex}};
+use std::{collections::BTreeMap, sync::Arc};
 
 use futures::{SinkExt, StreamExt};
 
@@ -8,7 +8,7 @@ use tokio_tungstenite::{connect_async, tungstenite::Message};
 
 use tokio::sync::mpsc::{Sender, channel};
 
-use equity_types::{ClientMsg, TransactionBody, TransactionCommand};
+use equity_types::{ClientMsg, TransactionCommand};
 
 use rand::Rng;
 

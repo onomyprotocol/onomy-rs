@@ -1,7 +1,7 @@
 use clap::Parser;
 use equity_client::EquityClient;
-use equity_types::Keys;
-use tracing::{info};
+use credentials::Keys;
+use tracing::info;
 use std::{thread, time};
 
 #[derive(Parser)]
@@ -49,7 +49,7 @@ pub async fn main() {
             println!("DB Key Range: {:?}", value_range);
             println!("Iterations: {:?}", iterations);
             let tester = client.test_transaction(key_domain, value_range, iterations);
-            let transaction = client.credentials.create_client_transaction(tester);
+            let transaction = client.credentials.transaction(tester).await.unwrap();
             client.send_transaction(transaction).await;
             thread::sleep(time::Duration::from_secs(5));
             info!("Transaction submitted");

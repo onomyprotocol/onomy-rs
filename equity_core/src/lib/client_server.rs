@@ -4,14 +4,12 @@ use ed25519_consensus::{Signature, VerificationKey};
 
 use equity_types::{
     EquityError, HealthResponse,
-    PostTransactionResponse, ClientMsg, TransactionBody
+    PostTransactionResponse, ClientMsg, TransactionBody, TransactionCommand
 };
 
-use equity_types::TransactionBody::{ SetValues, SetValidator };
+use equity_types::Msg;
 
-use equity_types::MsgType;
-
-use futures::{SinkExt, StreamExt};
+use futures::StreamExt;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha512};
 use tokio::{
@@ -117,19 +115,19 @@ async fn client_switch(
         },
         ClientMsg::Transaction{ body, hash, signature } => {
             
-            match body {
-                SetValues { public_key, nonce, keys_values, command } => {
-                    if let Error = verify_signature(&body, public_key, &signature) {
+            match body.command {
+                TransactionCommand::SetValues { keys_values } => {
+                    if let Error = verify_signature(&body, &body.public_key, &signature) {
                         return
                     }                
                     
-                    let response = transaction(&context, body2, hash, public_key, signature).await;
+                    let response = transaction(&context, body, hash, body.public_key, signature).await;
                     sender
                         .send(Message::binary(serde_json::to_vec(&response)
                         .expect("msg does not have serde serialize trait"))).await.unwrap();
                 },
-                SetValidator { public_key, nonce, ws, command } => {
-                    if let Error = verify_signature(&body, public_key, &signature) {
+                TransactionCommand::SetValidator { ws } => {
+                    if let Error = verify_signature(&body, &body.public_key, &signature) {
                         return
                     } 
 
@@ -142,7 +140,7 @@ async fn client_switch(
                     // The task will need to hold the Command and anything else related
                     match connection {
                         Ok(()) => {
-                            context.brb.initiate(hash, public_key,  MsgType::Client(client_command));
+                            context.brb.initiate(hash, body.public_key,  Msg::Client(client_command));
                         },
                         Error => {
                             return
@@ -208,7 +206,7 @@ async fn transaction(
 }
 
 
-fn verify_signature(body: &TransactionBody, public_key: VerificationKey, signature: &Signature) -> Result<(), Error> {
+fn verify_signature(body: &TransactionBody, public_key: &VerificationKey, signature: &Signature) -> Result<(), Error> {
     let mut digest: Sha512 = Sha512::new();
 
     digest.update(serde_json::to_string(&body).unwrap());
