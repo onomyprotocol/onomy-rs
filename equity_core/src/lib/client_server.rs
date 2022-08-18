@@ -155,10 +155,10 @@ fn health() -> HealthResponse {
 
 async fn transaction(
     context: &Context,
-    body: TransactionBody,
-    hash: String,
-    public_key: VerificationKey,
-    signature: Signature
+    body: &TransactionBody,
+    hash: &String,
+    public_key: &VerificationKey,
+    signature: &Signature
 ) -> PostTransactionResponse {
     info!(target = "equity-core", "Transaction API");
 
@@ -176,11 +176,8 @@ async fn transaction(
     // 1) Verify Signature
     // 2) Verify Transaction Enabled by State
     // If transaction is not verified then revert transaction
-    let body_verify = body.clone();
-    let hash_verify = hash.clone();
-    let signature_verify = signature.clone();
 
-    if let Ok(Err(e)) = spawn_blocking(move || verify_signature(&body_verify, public_key, &signature_verify)).await {
+    if let Ok(Err(e)) = spawn_blocking(move || verify_signature(body, public_key, signature)).await {
         return PostTransactionResponse {
             success: false,
             msg: e.to_string(),
