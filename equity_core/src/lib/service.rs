@@ -6,11 +6,12 @@ use std::{
 
 use equity_storage::EquityDatabase;
 use equity_consensus::Brb;
-use equity_types::{Credentials, EquityError, Keys};
+use equity_types::{ EquityError, socket_to_ws };
 use futures::future::join_all;
 use tokio::task::JoinHandle;
 use equity_p2p::PeerMap;
 use equity_client::EquityClient;
+use credentials::{ Credentials, Keys };
 
 use crate::{client_server::start_client_server, p2p_server::start_p2p_server, Error};
 
@@ -25,7 +26,6 @@ pub struct Context {
     pub peers: PeerMap,
     pub db: EquityDatabase,
     pub client: EquityClient,
-    pub credentials: Arc<Credentials>,
     pub brb: Brb
 }
 
@@ -36,11 +36,13 @@ impl EquityService {
         seed_address: SocketAddr,
         db: EquityDatabase,
     ) -> Result<Self, Error> {
-        let peers = PeerMap::new(Mutex::new(HashMap::new()));
-        
-        let credentials = Arc::new(Credentials::new());
 
-        let mut client = EquityClient::new(seed_address, Keys::Is(credentials)).await.unwrap();
+        // Need to add in command line or file based input of keys
+        let keys = Keys::Empty;
+        
+        let peers = PeerMap::new(Mutex::new(HashMap::new()));
+
+        let mut client = EquityClient::new(&socket_to_ws(seed_address), keys).await.unwrap();
 
         let brb = Brb::new();
 
@@ -48,7 +50,6 @@ impl EquityService {
             peers,
             db,
             client,
-            credentials,
             brb
         };
 

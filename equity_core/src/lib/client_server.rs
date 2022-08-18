@@ -119,7 +119,7 @@ async fn client_switch(
             }
             match &body.command {
                 TransactionCommand::SetValues { keys_values } => {
-                    let response = transaction(&context, body, hash, body.public_key, signature).await;
+                    let response = transaction(&context, body, hash, &body.public_key, signature).await;
                     sender
                         .send(Message::binary(serde_json::to_vec(&response)
                         .expect("msg does not have serde serialize trait"))).await.unwrap();
@@ -136,6 +136,7 @@ async fn client_switch(
                     // The task will need to hold the Command and anything else related
                     match connection {
                         Ok(()) => {
+                            let client_command = client_command.clone();
                             context.brb.initiate(hash, body.public_key,  Msg::Client(client_command));
                         },
                         Error => {
@@ -176,13 +177,18 @@ async fn transaction(
     // 1) Verify Signature
     // 2) Verify Transaction Enabled by State
     // If transaction is not verified then revert transaction
+    let body2 = body.clone();
+    let public_key2 = public_key.clone();
+    let signature2 = signature.clone();
 
-    if let Ok(Err(e)) = spawn_blocking(move || verify_signature(body, public_key, signature)).await {
+    if let Ok(Err(e)) = spawn_blocking(move || verify_signature(&body2, &public_key2, &signature2)).await {
         return PostTransactionResponse {
             success: false,
             msg: e.to_string(),
         }
     }
+
+    let body = body.clone();
 
     // Post transaction record to db
     if let Ok(None) = context.db.set(&hash, body) {

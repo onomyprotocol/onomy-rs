@@ -96,9 +96,13 @@ pub enum PeerMsg {
         peer_list: Vec<VerificationKey>,
         public_key: VerificationKey,
         signature: Signature,
-    }
+    },
+    Consensus(Consensus)
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub enum Consensus {
+}
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub enum Broadcast {

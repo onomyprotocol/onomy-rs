@@ -13,6 +13,7 @@ name = "equity_core"
 path = "src/bin/main.rs"
 
 [dependencies]
+credentials = { path = "../credentials" }
 equity_storage = { path = "../equity_storage" }
 equity_types = { path = "../equity_types" }
 equity_consensus = { path = "../equity_consensus" }

@@ -1,13 +1,14 @@
 use std::{collections::HashMap, net::SocketAddr};
 
-use ed25519_consensus::{VerificationKey};
-use equity_types::{ Credentials, EquityError, PeerMsg, TransactionBody, TransactionBroadcast::{ Init, Echo, Ready }, socket_to_ws };
+use ed25519_consensus::VerificationKey;
+use equity_types::{ EquityError, PeerMsg, TransactionCommand, Broadcast::{ Init, Echo, Ready }, socket_to_ws };
 use futures::{SinkExt, StreamExt};
 use tokio::{
     net::{TcpListener, TcpStream},
     sync::mpsc::{channel, Sender},
     task::JoinHandle,
 };
+use credentials::Credentials;
 
 use serde_json::Value;
 
@@ -23,15 +24,7 @@ pub async fn start_p2p_server(
     seed_address: SocketAddr,
     context: Context
 ) -> Result<(SocketAddr, JoinHandle<Result<(), EquityError>>), Error> {
-    if seed_address.to_string() != *"0.0.0.0:0" {
-        initialize_network(
-            &socket_to_ws(seed_address),
-            context.clone(),
-            p2p_listener,
-        )
-        .await;
-    }
-
+    
     let try_socket = TcpListener::bind(&p2p_listener).await;
     let listener = try_socket.expect("Failed to bind");
     let bound_addr = listener.local_addr().unwrap();
@@ -51,6 +44,16 @@ pub async fn start_p2p_server(
     });
 
     info!(target: "equity-core", "P2P Server started at: {}", bound_addr);
+
+    // Send init validator TX to Seed Peer.
+    if seed_address.to_string() != *"0.0.0.0:0" {
+        initialize_network(
+            &socket_to_ws(seed_address),
+            context.clone(),
+            p2p_listener,
+        )
+        .await;
+    }
 
     Ok((bound_addr, handle))
 }
@@ -85,7 +88,7 @@ async fn handle_connection(
 
         // Add Peer to list
     }
-    
+
     tokio::spawn(async move {
         while let Some(Ok(msg)) = read.next().await {
             let tx_clone = tx.clone();
@@ -121,7 +124,7 @@ async fn initialize_network(
     
     // Send ClientMsg
     ws_stream
-        .send(initial_message(&context.credentials, p2p_listener))
+        .send(initial_message(&context.client.credentials, p2p_listener))
         .await
         .unwrap();
 
@@ -172,9 +175,7 @@ fn key_to_string(key: &VerificationKey) -> Result<String, serde_json::Error> {
 }
 
 pub fn initial_message(credentials: &Credentials, p2p_listener: SocketAddr) -> Message {
-    let transaction_body = TransactionBody::SetValidator {
-        public_key: credentials.public_key,
-        nonce: credentials.nonce,
+    let transaction_body = TransactionCommand::SetValidator {
         ws: p2p_listener
     };
 
@@ -188,7 +189,7 @@ pub fn initial_message(credentials: &Credentials, p2p_listener: SocketAddr) -> M
     )
 }
 
-pub async fn peer_connection(peer_address: SocketAddr, context: &Context) -> Result<(), Error> {
+pub async fn peer_connection(peer_address: &SocketAddr, context: &Context) -> Result<(), Error> {
     let (mut ws_stream, _) = connect_async(socket_to_ws(peer_address))
         .await
         .expect("Failed to connect");
@@ -231,12 +232,12 @@ pub async fn peer_connection(peer_address: SocketAddr, context: &Context) -> Res
 }
 
 async fn p2p_switch(
-    peer_command: PeerMsg, 
+    peer_msg: PeerMsg, 
     sender: Sender<Message>,
     context: Context
 ) {
-    match peer_command {
-        PeerMsg::TransactionBroadcast(stage) => {
+    match peer_msg {
+        Broadcast(stage) => {
             match stage {
                 Init { command } => {
 

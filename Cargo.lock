@@ -314,6 +314,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "clap",
+ "credentials",
  "ed25519-consensus",
  "equity_client",
  "equity_consensus",
