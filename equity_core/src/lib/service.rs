@@ -1,7 +1,7 @@
 use std::{
     collections::HashMap,
     net::SocketAddr,
-    sync::{Arc, Mutex},
+    sync::Mutex
 };
 
 use equity_storage::EquityDatabase;
@@ -11,7 +11,7 @@ use futures::future::join_all;
 use tokio::task::JoinHandle;
 use equity_p2p::PeerMap;
 use equity_client::EquityClient;
-use credentials::{ Credentials, Keys };
+use credentials::Keys;
 
 use crate::{client_server::start_client_server, p2p_server::start_p2p_server, Error};
 
@@ -42,7 +42,7 @@ impl EquityService {
         
         let peers = PeerMap::new(Mutex::new(HashMap::new()));
 
-        let mut client = EquityClient::new(&socket_to_ws(seed_address), keys).await.unwrap();
+        let client = EquityClient::new(&socket_to_ws(seed_address), keys).await.unwrap();
 
         let brb = Brb::new();
 

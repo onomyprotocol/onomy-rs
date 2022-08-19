@@ -116,16 +116,21 @@ async fn client_switch(
             if let Error = verify_signature(&body, &body.public_key, &signature) {
                 return
             }
-            match &body.command {
+            match &transaction.body.command {
                 TransactionCommand::SetValues { keys_values } => {
-                    let response = transaction(&context, body, hash, &body.public_key, signature).await;
+                    let response = set_values(
+                        &context, 
+                        &transaction.body, 
+                        &transaction.hash, 
+                        &transaction.body.public_key, 
+                        &transaction.signature
+                    ).await;
                     sender
                         .send(Message::binary(serde_json::to_vec(&response)
                         .expect("msg does not have serde serialize trait"))).await.unwrap();
                 },
                 TransactionCommand::SetValidator { ws } => {
                      
-
                     // 1) Connect
                     let connection = peer_connection(ws, &context).await;
                     
@@ -153,7 +158,7 @@ fn health() -> HealthResponse {
     HealthResponse { up: true }
 }
 
-async fn transaction(
+async fn set_values(
     context: &Context,
     body: &TransactionBody,
     hash: &String,

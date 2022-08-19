@@ -8,6 +8,7 @@ use tokio::{
     sync::mpsc::{channel, Sender},
     task::JoinHandle,
 };
+
 use credentials::Credentials;
 
 use serde_json::Value;
@@ -172,21 +173,6 @@ fn key_to_string(key: &VerificationKey) -> Result<String, serde_json::Error> {
         Ok(val) => Ok(val.to_string()),
         Err(e) => Err(e)
     }
-}
-
-pub fn initial_message(credentials: &Credentials, p2p_listener: SocketAddr) -> Message {
-    let transaction_body = TransactionCommand::SetValidator {
-        ws: p2p_listener
-    };
-
-    credentials.noncer();
-
-    let transaction = credentials.create_transaction(&transaction_body);
-
-    Message::binary(
-        serde_json::to_vec(&transaction)
-        .unwrap(),
-    )
 }
 
 pub async fn peer_connection(peer_address: &SocketAddr, context: &Context) -> Result<(), Error> {
