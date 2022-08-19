@@ -112,61 +112,6 @@ async fn handle_connection(
     // peers.remove(&listener);
 }
 
-async fn initialize_network(
-    seed_address: &String,
-    context: Context,
-    p2p_listener: SocketAddr,
-) {
-    let (mut ws_stream, _) = connect_async(seed_address)
-        .await
-        .expect("Failed to connect");
-
-    println!("WebSocket handshake has been successfully completed");
-    
-    // Send ClientMsg
-    ws_stream
-        .send(initial_message(&context.client.credentials, p2p_listener))
-        .await
-        .unwrap();
-
-    let (write, mut read) = ws_stream.split();
-
-    // Insert the write part of this peer to the peer map.
-    // I do need to receive the peermap, but that will be in handle connection.
-    let (tx, rx) = channel(1000);
-    let rx = ReceiverStream::new(rx);
-
-    tokio::spawn(rx.map(Ok).forward(write));
-
-    let mut seed_peer_map: HashMap<String, VerificationKey> = HashMap::new();
-
-    if let Some(Ok(init_msg)) = read.next().await {
-        if let PeerMsg::PeerInit { peer_list, public_key, signature } =
-            serde_json::from_str(&init_msg.into_text().unwrap()).unwrap() {
-            
-            
-
-            let mut peers = context.peers.lock().unwrap();
-        
-            let peer_struct = Peer {
-                sender: tx.clone(),
-                peer_list,
-            };
-        
-            peers.insert(key_to_string(&public_key).unwrap(), peer_struct);
-        }
-
-        
-    } else {
-
-    }
-
-    // Iterate over everything.
-    for (adr, _key) in seed_peer_map {
-        
-    }
-}
-
 fn key_to_string(key: &VerificationKey) -> Result<String, serde_json::Error> {
     let result = serde_json::from_slice::<Value>(&key.to_bytes());
     match result {
