@@ -1,4 +1,4 @@
-use equity_types::{ TransactionBody, TransactionCommand, ClientMsg };
+use equity_types::{ ClientMsg, TransactionBody, TransactionCommand, Transaction };
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 use ed25519_consensus::{Signature, SigningKey, VerificationKey};
@@ -181,11 +181,11 @@ impl Internal {
 
         let (hash, signature) = self.sign(message_string);
 
-        ClientMsg::Transaction {
+        ClientMsg::Transaction(Transaction {
             body,
             hash,
             signature,
-        }
+        })
     }
 }
 

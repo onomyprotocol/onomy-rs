@@ -3,11 +3,10 @@ use std::net::SocketAddr;
 use ed25519_consensus::{Signature, VerificationKey};
 
 use equity_types::{
-    EquityError, HealthResponse,
-    PostTransactionResponse, ClientMsg, TransactionBody, TransactionCommand
-};
 
-use equity_types::Msg;
+    BroadcastMsg, EquityError, HealthResponse,
+    PostTransactionResponse, ClientMsg, Transaction, TransactionBody, TransactionCommand
+};
 
 use futures::StreamExt;
 use serde::{Deserialize, Serialize};
@@ -113,7 +112,7 @@ async fn client_switch(
                 .send(Message::binary(serde_json::to_vec(&response)
                 .expect("msg does not have serde serialize trait"))).await.unwrap();
         },
-        ClientMsg::Transaction{ body, hash, signature } => {
+        ClientMsg::Transaction(transaction) => {
             if let Error = verify_signature(&body, &body.public_key, &signature) {
                 return
             }
@@ -137,7 +136,7 @@ async fn client_switch(
                     match connection {
                         Ok(()) => {
                             let client_command = client_command.clone();
-                            context.brb.initiate(hash, body.public_key,  Msg::Client(client_command));
+                            context.brb.initiate(hash, body.public_key,  BroadcastMsg::Transaction(client_command));
                         },
                         Error => {
                             return

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 use ed25519_consensus::{Signature, VerificationKey};
-use equity_types::Msg;
+use equity_types::BroadcastMsg;
 
 // The HashMap
 
@@ -66,14 +66,14 @@ impl Brb {
     // All BRB broadcast messages are either initiated or received.
     // Initiation is prompted by out of network messages (client / new validator) or enabled consensus condition.
     // All in-network messages are Received as part of Brb Broadcast
-    pub async fn initiate (&self, hash: &String, peer: VerificationKey, msg: Msg) {
+    pub async fn initiate (&self, hash: &String, peer: VerificationKey, broadcast_msg: BroadcastMsg) {
         // First need to check if there is already an initiated BRB instance with this same hash
         if let Some(brb_sender) = self.get(&hash).await {
             // BRB manager exists then treat as Echo
             // Need to define below how to use Echo before completing this part.
             brb_sender.send(BrbMsg::Echo{
                 peer,
-                msg: msg.clone()
+                BroadcastMsg: broadcast_msg.clone()
             }).await.unwrap()
         }
         
@@ -84,7 +84,7 @@ impl Brb {
             {
                 let internal = BrbInternal {
                     hash: hash2,
-                    msg,
+                    msg: broadcast_msg,
                     init: true,
                     echo: Vec::new(),
                     ready: Vec::new(),
@@ -93,10 +93,10 @@ impl Brb {
 
                 while let Some(brb_msg) = brb_rx.recv().await {
                     match brb_msg {
-                        BrbMsg::Init { peer, msg } => {
+                        BrbMsg::Init { peer, BroadcastMsg } => {
                             
                         }
-                        BrbMsg::Echo { peer, msg } => {
+                        BrbMsg::Echo { peer, BroadcastMsg } => {
                             
                         }
                         BrbMsg::Ready { hash } => {
@@ -146,11 +146,11 @@ enum BrbCommand {
 enum BrbMsg {
     Init {
         peer: VerificationKey,
-        msg: Msg
+        BroadcastMsg: BroadcastMsg
     },
     Echo {
         peer: VerificationKey,
-        msg: Msg
+        BroadcastMsg: BroadcastMsg
     },
     Ready {
         hash: String
@@ -160,7 +160,7 @@ enum BrbMsg {
 #[derive(Debug)]
 pub struct BrbInternal {
     hash: String,
-    msg: Msg,
+    msg: BroadcastMsg,
     init: bool,
     echo: Vec<VerificationKey>,
     ready: Vec<VerificationKey>,
@@ -168,7 +168,7 @@ pub struct BrbInternal {
 }
 
 impl BrbInternal {
-    fn init (hash: String, msg: Msg, signature: Signature) {
+    fn init (hash: String, BroadcastMsg: BroadcastMsg, signature: Signature) {
 
     } 
 }

@@ -66,11 +66,7 @@ pub enum EquityError {
 pub enum ClientMsg {
     Health {
     },
-    Transaction {
-        body: TransactionBody,
-        hash: String,
-        signature: Signature,
-    },
+    Transaction(Transaction)
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -102,17 +98,18 @@ pub enum PeerMsg {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub enum Consensus {
+
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub enum Broadcast {
     Init {
-        msg: Msg,
+        msg: BroadcastMsg,
         public_key: VerificationKey,
         signature: Signature
     },    
     Echo {
-        msg: Msg
+        msg: BroadcastMsg
     },
     Ready {
         hash: String
@@ -120,9 +117,16 @@ pub enum Broadcast {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub enum Msg {
-    Client(ClientMsg),
-    Peer(PeerMsg)
+pub struct Transaction {
+    pub body: TransactionBody,
+    pub hash: String,
+    pub signature: Signature
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub enum BroadcastMsg {
+    Transaction(Transaction),
+    Consensus(Consensus)
 }
 
 
