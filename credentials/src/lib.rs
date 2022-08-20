@@ -1,4 +1,5 @@
 use equity_types::{ ClientMsg, TransactionBody, TransactionCommand, Transaction };
+use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 use ed25519_consensus::{Signature, SigningKey, VerificationKey};
@@ -22,6 +23,20 @@ pub enum Keys {
 pub struct Credentials {
     public_key: VerificationKey,
     sender: mpsc::Sender<Command>
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct SignatureInput <T> {
+    body: T,
+    public_key: VerificationKey,
+    nonce: u64,
+}
+
+pub struct SignedMsg<T> {
+    body: T,
+    public_key: VerificationKey,
+    nonce: u64,
+    signature: Signature,
 }
 
 impl Credentials {
@@ -73,22 +88,11 @@ impl Credentials {
         }
     }
 
-    pub async fn sign(&self, msg: &String) -> Option<(String, Signature)> {
+    pub async fn sign<T: Clone, Deserialize>(&self, input: SignatureInput<T>) -> Option<SignedMsg> {
         let (resp, rx) = oneshot::channel();
-        self.sender.send(Command::Sign { msg: msg.clone(), resp }).await.unwrap();
+        self.sender.send(Command::Sign { msg: input.clone(), resp }).await.unwrap();
         if let Some(Response::Sign{hash, signature}) = rx.await.unwrap() {
             Some((hash, signature))
-        } else {
-            None
-        }
-    }
-
-    pub async fn transaction(&self, command: &TransactionCommand) -> Option<ClientMsg> {
-        let command = command.clone();
-        let (resp, rx) = oneshot::channel();
-        self.sender.send(Command::Transaction { command, resp }).await.unwrap();
-        if let Some(Response::Transaction{msg}) = rx.await.unwrap() {
-            Some(msg)
         } else {
             None
         }
