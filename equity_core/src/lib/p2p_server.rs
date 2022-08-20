@@ -32,13 +32,15 @@ pub async fn start_p2p_server(
 
     info!(target: "equity-core", "Starting P2P Server");
 
+    let context_handle_connection = context.clone();
+
     let handle = tokio::spawn(async move {
         // Let's spawn the handling of each connection in a separate task.
         while let Ok((stream, addr)) = listener.accept().await {
             tokio::spawn(handle_connection(
                 stream,
                 addr,
-                context.clone()
+                context_handle_connection.clone()
             ));
         }
         Ok(())
@@ -48,12 +50,11 @@ pub async fn start_p2p_server(
 
     // Send init validator TX to Seed Peer.
     if seed_address.to_string() != *"0.0.0.0:0" {
-        initialize_network(
-            &socket_to_ws(seed_address),
-            context.clone(),
-            p2p_listener,
-        )
-        .await;
+        context.client.send_transaction(
+            context.clone().client.credentials.transaction(
+                &TransactionCommand::SetValidator { ws: p2p_listener }
+            ).await.unwrap()
+        );
     }
 
     Ok((bound_addr, handle))

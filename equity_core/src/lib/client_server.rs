@@ -112,18 +112,18 @@ async fn client_switch(
                 .send(Message::binary(serde_json::to_vec(&response)
                 .expect("msg does not have serde serialize trait"))).await.unwrap();
         },
-        ClientMsg::Transaction(transaction) => {
+        ClientMsg::Transaction(Transaction {body, hash, signature}) => {
             if let Error = verify_signature(&body, &body.public_key, &signature) {
                 return
             }
-            match &transaction.body.command {
+            match &body.command {
                 TransactionCommand::SetValues { keys_values } => {
                     let response = set_values(
                         &context, 
-                        &transaction.body, 
-                        &transaction.hash, 
-                        &transaction.body.public_key, 
-                        &transaction.signature
+                        &body, 
+                        &hash, 
+                        &body.public_key, 
+                        &signature
                     ).await;
                     sender
                         .send(Message::binary(serde_json::to_vec(&response)
@@ -140,8 +140,11 @@ async fn client_switch(
                     // The task will need to hold the Command and anything else related
                     match connection {
                         Ok(()) => {
-                            let client_command = client_command.clone();
-                            context.brb.initiate(hash, body.public_key,  BroadcastMsg::Transaction(client_command));
+                            context.brb.initiate(hash, body.public_key,  BroadcastMsg::Transaction(Transaction {
+                                body: body.clone(),
+                                hash: hash.clone(),
+                                signature: *signature
+                            }));
                         },
                         Error => {
                             return

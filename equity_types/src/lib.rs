@@ -130,7 +130,7 @@ pub enum BroadcastMsg {
 }
 
 
-pub fn socket_to_ws(addr: SocketAddr) -> String {
+pub fn socket_to_ws(addr: &SocketAddr) -> String {
     let mut ws_addr = "ws://".to_string();
     ws_addr.push_str(&addr.to_string());
     return ws_addr
