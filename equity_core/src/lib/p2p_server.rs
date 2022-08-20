@@ -1,4 +1,4 @@
-use std::{collections::HashMap, net::SocketAddr};
+use std::net::SocketAddr;
 
 use ed25519_consensus::VerificationKey;
 use equity_types::{ EquityError, PeerMsg, TransactionCommand, Broadcast::{ Init, Echo, Ready }, socket_to_ws };
@@ -9,14 +9,11 @@ use tokio::{
     task::JoinHandle,
 };
 
-use credentials::Credentials;
-
 use serde_json::Value;
 
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 use tracing::info;
-use equity_p2p::Peer;
 use crate::service::Context;
 use crate::error::Error;
 
@@ -130,7 +127,9 @@ pub async fn peer_connection(peer_address: &SocketAddr, context: &Context) -> Re
     
     // Send ClientMsg
     ws_stream
-        .send(initial_message(&context.credentials, p2p_listener))
+        .send(
+            
+        )
         .await
         .unwrap();
 
