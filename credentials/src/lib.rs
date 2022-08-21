@@ -52,9 +52,9 @@ impl Credentials {
                 while let Some(cmd) = rx.recv().await {
                     
                     match cmd {
-                        Command::Sign { msg, resp } => {
+                        Command::Sign { input, resp } => {
                             
-                            let (hash, signature) = signer_spawn.sign(msg);
+                            let (hash, signature) = signer_spawn.sign(input);
 
                             resp.send(
                                 Some(
@@ -90,9 +90,9 @@ impl Credentials {
 
     pub async fn sign<T: Clone, Deserialize>(&self, input: SignatureInput<T>) -> Option<SignedMsg> {
         let (resp, rx) = oneshot::channel();
-        self.sender.send(Command::Sign { msg: input.clone(), resp }).await.unwrap();
-        if let Some(Response::Sign{hash, signature}) = rx.await.unwrap() {
-            Some((hash, signature))
+        self.sender.send(Command::Sign { input: input.clone(), resp }).await.unwrap();
+        if let Some(Response::Sign{signed_msg}) = rx.await.unwrap() {
+            Some(SignedMsg)
         } else {
             None
         }
@@ -105,23 +105,15 @@ impl Credentials {
 #[derive(Debug)]
 enum Command {
     Sign {
-        msg: String,
+        input: SignatureInput,
         resp: Responder<Option<Response>>,
-    },
-    Transaction {
-        command: TransactionCommand,
-        resp: Responder<Option<Response>>
     }
 }
 
 #[derive(Debug)]
 enum Response {
     Sign {
-        hash: String,
-        signature: Signature
-    },
-    Transaction {
-        msg: ClientMsg
+        signed_msg: SignedMsg
     }
 }
 
@@ -161,7 +153,7 @@ impl Internal {
         
     }
 
-    fn sign(&self, message: String) -> (String, Signature) {
+    fn sign<T: Clone, Deserialize>(&self, input: SignatureInput<T>) -> (String, Signature) {
         // Hash + Signature operation may be considered blocking
         let mut digest: Sha512 = Sha512::new();
         
@@ -172,24 +164,6 @@ impl Internal {
         let signature: Signature = self.private_key.sign(hash.as_bytes());
 
         (hash, signature)
-    }
-
-    fn transaction(&self, command: TransactionCommand) -> ClientMsg {
-        let body = TransactionBody {
-            nonce: self.nonce,
-            public_key: self.public_key,
-            command
-        };
-
-        let message_string = serde_json::to_string(&body).unwrap();
-
-        let (hash, signature) = self.sign(message_string);
-
-        ClientMsg::Transaction(Transaction {
-            body,
-            hash,
-            signature,
-        })
     }
 }
 
