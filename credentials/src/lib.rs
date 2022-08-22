@@ -25,6 +25,8 @@ pub struct Credentials {
     sender: mpsc::Sender<Command>
 }
 
+// May not even need the internal structure anymore because using salt instead of a nonce
+
 impl Credentials {
     pub fn new(keys: Keys) -> Credentials {
         let (tx, mut rx) = mpsc::channel(1000);
@@ -36,21 +38,15 @@ impl Credentials {
         tokio::spawn(async move
             {
                 while let Some(cmd) = rx.recv().await {
-                    
                     match cmd {
                         Command::Sign { input, resp } => {
-                            
-                            let (hash, signature) = signer_spawn.sign(input);
+                            tokio::spawn(async move {
+                                let response = signer_spawn.sign(input);
 
-                            resp.send(
-                                Some(
-                                    Response::Sign { 
-                                        hash,
-                                        salt,
-                                        signature
-                                    }
-                                )
-                            ).unwrap()
+                                resp.send(
+                                    Some(response)
+                                ).unwrap()
+                            })
                         }
                     }
                 }
@@ -105,13 +101,11 @@ type Responder<T> = oneshot::Sender<T>;
 #[derive(Debug, Clone)]
 struct Internal {
     pub private_key: SigningKey,
-    pub public_key: VerificationKey,
-    pub nonce: u64,
+    pub public_key: VerificationKey
 }
 
 impl Internal {
     fn new(keys: Keys) -> Internal {
-
         match keys {
             Keys::Empty => {
                 let sk = SigningKey::new(thread_rng());
@@ -119,15 +113,13 @@ impl Internal {
 
                 Self {
                     private_key: sk,
-                    public_key: vk,
-                    nonce: 1,
+                    public_key: vk
                 }
             },
             Keys::Is(cred) => {
                 Self {
                     private_key: cred.private_key,
-                    public_key: cred.public_key,
-                    nonce: 1
+                    public_key: cred.public_key
                 }
             },
         }
