@@ -1,11 +1,10 @@
-use equity_types::{ ClientMsg, TransactionBody, TransactionCommand, Transaction };
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 use ed25519_consensus::{Signature, SigningKey, VerificationKey};
 use sha2::{Digest, Sha512};
 use rand::thread_rng;
-use serde_json;
+use rand::Rng;
 
 #[derive(Debug, Clone)]
 pub struct KeyPair {
@@ -23,20 +22,6 @@ pub enum Keys {
 pub struct Credentials {
     public_key: VerificationKey,
     sender: mpsc::Sender<Command>
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct SignatureInput <T> {
-    body: T,
-    public_key: VerificationKey,
-    nonce: u64,
-}
-
-pub struct SignedMsg<T> {
-    body: T,
-    public_key: VerificationKey,
-    nonce: u64,
-    signature: Signature,
 }
 
 impl Credentials {
@@ -64,18 +49,6 @@ impl Credentials {
                                     }
                                 )
                             ).unwrap()
-                        },
-                        Command::Transaction { command, resp } => {
-                            
-                            let msg = signer_spawn.transaction(command);
-
-                            resp.send(
-                                Some(
-                                    Response::Transaction { 
-                                        msg
-                                    }
-                                )
-                            ).unwrap()
                         }
                     }
                 }
@@ -88,11 +61,11 @@ impl Credentials {
         }
     }
 
-    pub async fn sign<T: Clone, Deserialize>(&self, input: SignatureInput<T>) -> Option<SignedMsg> {
+    pub async fn sign<T: Clone, Deserialize>(&self, input: String) -> Option<SignedMsg> {
         let (resp, rx) = oneshot::channel();
         self.sender.send(Command::Sign { input: input.clone(), resp }).await.unwrap();
         if let Some(Response::Sign{signed_msg}) = rx.await.unwrap() {
-            Some(SignedMsg)
+            Some(signed_msg)
         } else {
             None
         }
@@ -105,7 +78,7 @@ impl Credentials {
 #[derive(Debug)]
 enum Command {
     Sign {
-        input: SignatureInput,
+        input: String,
         resp: Responder<Option<Response>>,
     }
 }
@@ -113,7 +86,9 @@ enum Command {
 #[derive(Debug)]
 enum Response {
     Sign {
-        signed_msg: SignedMsg
+        hash: String,
+        nonce: u64,
+        signature: Signature
     }
 }
 
@@ -153,7 +128,9 @@ impl Internal {
         
     }
 
-    fn sign<T: Clone, Deserialize>(&self, input: SignatureInput<T>) -> (String, Signature) {
+    fn sign(&self, input: String) -> (String, Signature) {
+        let salt: u64 = thread_rng().gen::<u64>();
+
         // Hash + Signature operation may be considered blocking
         let mut digest: Sha512 = Sha512::new();
         
