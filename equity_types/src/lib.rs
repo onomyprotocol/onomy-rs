@@ -129,6 +129,19 @@ pub enum BroadcastMsg {
     Consensus(Consensus)
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct SignInput {
+    hash: String,
+    salt: u64
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct SignOutput {
+    hash: String,
+    salt: u64,
+    signature: Signature
+}
+
 
 pub fn socket_to_ws(addr: &SocketAddr) -> String {
     let mut ws_addr = "ws://".to_string();

@@ -1,4 +1,5 @@
-use serde::{Deserialize, Serialize};
+use equity_types::SignOutput;
+use serde_json
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 use ed25519_consensus::{Signature, SigningKey, VerificationKey};
@@ -44,7 +45,8 @@ impl Credentials {
                             resp.send(
                                 Some(
                                     Response::Sign { 
-                                        hash, 
+                                        hash,
+                                        salt,
                                         signature
                                     }
                                 )
@@ -61,11 +63,15 @@ impl Credentials {
         }
     }
 
-    pub async fn sign<T: Clone, Deserialize>(&self, input: String) -> Option<SignedMsg> {
+    pub async fn sign(&self, input: String) -> Option<SignOutput> {
         let (resp, rx) = oneshot::channel();
-        self.sender.send(Command::Sign { input: input.clone(), resp }).await.unwrap();
-        if let Some(Response::Sign{signed_msg}) = rx.await.unwrap() {
-            Some(signed_msg)
+        let signed_output = self.sender.send(Command::Sign { input, resp }).await.unwrap();
+        if let Some(Response::Sign{ hash, salt, signature }) = rx.await.unwrap() {
+            Some(SignOutput {
+                hash,
+                salt,
+                signature
+            })
         } else {
             None
         }
@@ -87,7 +93,7 @@ enum Command {
 enum Response {
     Sign {
         hash: String,
-        nonce: u64,
+        salt: u64,
         signature: Signature
     }
 }
@@ -128,19 +134,23 @@ impl Internal {
         
     }
 
-    fn sign(&self, input: String) -> (String, Signature) {
+    fn sign(&self, input: String) -> Response::Sign {
         let salt: u64 = thread_rng().gen::<u64>();
 
         // Hash + Signature operation may be considered blocking
         let mut digest: Sha512 = Sha512::new();
         
-        digest.update(message);
+        digest.update(input);
 
-        let hash: String = format!("{:X}", digest.clone().finalize());
+        let hash: String = format!("{:X}", digest.finalize());
 
         let signature: Signature = self.private_key.sign(hash.as_bytes());
 
-        (hash, signature)
+        Response::Sign {
+            hash,
+            salt,
+            signature
+        }
     }
 }
 
