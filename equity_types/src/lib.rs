@@ -132,16 +132,10 @@ pub enum BroadcastMsg {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct SignInput {
-    hash: String,
-    salt: u64
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct SignOutput {
-    hash: String,
-    salt: u64,
-    signature: Signature
+    pub hash: String,
+    pub salt: u64,
+    pub signature: Signature
 }
 
 
