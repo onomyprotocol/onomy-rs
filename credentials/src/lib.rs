@@ -20,7 +20,7 @@ pub enum Keys {
 #[derive(Debug, Clone)]
 pub struct Credentials {
     private_key: SigningKey,
-    public_key: VerificationKey
+    pub public_key: VerificationKey
 }
 
 // May not even need the internal structure anymore because using salt instead of a nonce

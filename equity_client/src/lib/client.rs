@@ -8,7 +8,7 @@ use tokio_tungstenite::{connect_async, tungstenite::Message};
 
 use tokio::sync::mpsc::{Sender, channel};
 
-use equity_types::{ClientMsg, TransactionCommand};
+use equity_types::{ClientMsg, SignOutput, Transaction, TransactionCommand};
 
 use rand::Rng;
 
@@ -98,9 +98,9 @@ impl EquityClient {
     }
 
     pub async fn sign_transaction(&self, command: &TransactionCommand) -> Transaction {
-        let SignOutput { hash, salt, signature } = self.credentials.sign(serde_json::to_string(command)).await.unwrap();
+        let SignOutput { hash, salt, signature } = self.credentials.sign(serde_json::to_string(command).unwrap()).await.unwrap();
         Transaction {
-            command,
+            command: command.clone(),
             public_key: self.credentials.public_key,
             hash,
             salt,
@@ -110,9 +110,9 @@ impl EquityClient {
 
     pub async fn send_transaction(
         &self,
-        transaction: ClientMsg,
+        transaction: Transaction,
     ) {
-      self.sender.send(transaction).await.expect("Channel failed");  
+      self.sender.send(ClientMsg::Transaction(transaction)).await.expect("Channel failed");  
     }
 
 
