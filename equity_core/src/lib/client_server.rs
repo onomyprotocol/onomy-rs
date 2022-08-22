@@ -5,7 +5,7 @@ use ed25519_consensus::{Signature, VerificationKey};
 use equity_types::{
 
     BroadcastMsg, EquityError, HealthResponse,
-    PostTransactionResponse, ClientMsg, Transaction, TransactionBody, TransactionCommand
+    PostTransactionResponse, ClientMsg, SignInput, Transaction, TransactionBody, TransactionCommand
 };
 
 use futures::StreamExt;
@@ -112,8 +112,8 @@ async fn client_switch(
                 .send(Message::binary(serde_json::to_vec(&response)
                 .expect("msg does not have serde serialize trait"))).await.unwrap();
         },
-        ClientMsg::Transaction(Transaction {body, hash, signature}) => {
-            if let Error = verify_signature(&body, &body.public_key, &signature) {
+        ClientMsg::Transaction(transaction) => {
+            if let Error = verify_signature(&transaction) {
                 return
             }
             match &body.command {
@@ -212,15 +212,17 @@ async fn set_values(
 }
 
 
-fn verify_signature(body: &TransactionBody, public_key: &VerificationKey, signature: &Signature) -> Result<(), Error> {
+fn verify_signature(transaction: &Transaction) -> Result<(), Error> {
     let mut digest: Sha512 = Sha512::new();
 
-    digest.update(serde_json::to_string(&body).unwrap());
+    digest.update(serde_json::to_string(&SignInput{
+        input: serde_json::to_string(&transaction.command).unwrap(),
+        salt: transaction.salt
+    }).unwrap());
 
-    let digest_string: String = format!("{:X}", digest.clone().finalize());
+    let hash: String = format!("{:X}", digest.finalize());
 
-    
-    public_key.verify(signature, digest_string.as_bytes());
+    public_key.verify(transaction.signature, digest_string.as_bytes());
     
     Ok(())
 }

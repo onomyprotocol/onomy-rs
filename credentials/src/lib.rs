@@ -1,9 +1,10 @@
-use equity_types::SignOutput;
+use equity_types::{ SignInput, SignOutput };
 use tokio::sync::oneshot;
 use ed25519_consensus::{Signature, SigningKey, VerificationKey};
 use sha2::{Digest, Sha512};
 use rand::thread_rng;
 use rand::Rng;
+use serde::Serialize;
 
 #[derive(Debug, Clone)]
 pub struct KeyPair {
@@ -54,8 +55,11 @@ impl Credentials {
             let salt: u64 = thread_rng().gen::<u64>();
 
             let mut digest: Sha512 = Sha512::new();
-            
-            digest.update(input);
+
+            digest.update(serde_json::to_string(&SignInput{
+                input,
+                salt
+            }).unwrap());
 
             let hash: String = format!("{:X}", digest.finalize());
 
