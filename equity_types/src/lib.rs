@@ -118,8 +118,10 @@ pub enum Broadcast {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Transaction {
-    pub body: TransactionBody,
+    pub command: TransactionCommand,
+    pub public_key: VerificationKey,
     pub hash: String,
+    pub salt: u64,
     pub signature: Signature
 }
 

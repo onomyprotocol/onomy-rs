@@ -97,10 +97,23 @@ impl EquityClient {
         }
     }
 
+    pub async fn sign_transaction(&self, command: &TransactionCommand) -> Transaction {
+        let SignOutput { hash, salt, signature } = self.credentials.sign(serde_json::to_string(command)).await.unwrap();
+        Transaction {
+            command,
+            public_key: self.credentials.public_key,
+            hash,
+            salt,
+            signature
+        }
+    }
+
     pub async fn send_transaction(
         &self,
         transaction: ClientMsg,
     ) {
       self.sender.send(transaction).await.expect("Channel failed");  
     }
+
+
 }
