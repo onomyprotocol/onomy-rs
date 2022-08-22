@@ -1,11 +1,11 @@
 use std::net::SocketAddr;
 
-use ed25519_consensus::{Signature, VerificationKey};
+use ed25519_consensus::VerificationKey;
 
 use equity_types::{
 
     BroadcastMsg, EquityError, HealthResponse,
-    PostTransactionResponse, ClientMsg, SignInput, Transaction, TransactionBody, TransactionCommand
+    PostTransactionResponse, ClientMsg, SignInput, Transaction, TransactionCommand
 };
 
 use futures::StreamExt;
@@ -14,7 +14,7 @@ use sha2::{Digest, Sha512};
 use tokio::{
     net::{TcpListener, TcpStream},
     sync::mpsc::{channel, Sender},
-    task::{spawn_blocking, JoinHandle}
+    task::JoinHandle
 };
 
 use tokio_stream::wrappers::ReceiverStream;
@@ -116,14 +116,11 @@ async fn client_switch(
             if let Error = verify_signature(&transaction) {
                 return
             }
-            match &body.command {
+            match &transaction.command {
                 TransactionCommand::SetValues { keys_values } => {
                     let response = set_values(
-                        &context, 
-                        &body, 
-                        &hash, 
-                        &body.public_key, 
-                        &signature
+                        &context,
+                        &transaction
                     ).await;
                     sender
                         .send(Message::binary(serde_json::to_vec(&response)
@@ -163,42 +160,21 @@ fn health() -> HealthResponse {
 
 async fn set_values(
     context: &Context,
-    body: &TransactionBody,
-    hash: &String,
-    public_key: &VerificationKey,
-    signature: &Signature
+    transaction: &Transaction
 ) -> PostTransactionResponse {
     info!(target = "equity-core", "Transaction API");
 
     // Check database if Mapping [hash -> tx_record] exists
     // If value exists revert transaction. There are no duplicates allowed
-
-    if let Ok(Some(_value)) = context.db.get::<TransactionBody>(&hash.as_bytes()) {
+    if let Ok(Some(_value)) = context.db.get::<Transaction>(&transaction.hash.as_bytes()) {
         return PostTransactionResponse {
             success: false,
             msg: "Revert: TX already exists".to_string(),
         }
     };
 
-    // Pre-Verify Transaction
-    // 1) Verify Signature
-    // 2) Verify Transaction Enabled by State
-    // If transaction is not verified then revert transaction
-    let body2 = body.clone();
-    let public_key2 = public_key.clone();
-    let signature2 = signature.clone();
-
-    if let Ok(Err(e)) = spawn_blocking(move || verify_signature(&body2, &public_key2, &signature2)).await {
-        return PostTransactionResponse {
-            success: false,
-            msg: e.to_string(),
-        }
-    }
-
-    let body = body.clone();
-
     // Post transaction record to db
-    if let Ok(None) = context.db.set(&hash, body) {
+    if let Ok(None) = context.db.set(&transaction.hash, transaction.clone()) {
         return PostTransactionResponse {
             success: true,
             msg: "Transaction entry recorded to db".to_string(),
@@ -222,7 +198,7 @@ fn verify_signature(transaction: &Transaction) -> Result<(), Error> {
 
     let hash: String = format!("{:X}", digest.finalize());
 
-    public_key.verify(transaction.signature, digest_string.as_bytes());
+    transaction.public_key.verify(&transaction.signature, &hash.as_bytes());
     
     Ok(())
 }

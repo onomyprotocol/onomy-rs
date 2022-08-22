@@ -70,13 +70,6 @@ pub enum ClientMsg {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct TransactionBody {
-    pub nonce: u64,
-    pub public_key: VerificationKey,
-    pub command: TransactionCommand
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
 pub enum TransactionCommand {
     SetValues {
         keys_values: BTreeMap<u64, u64>,
