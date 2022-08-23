@@ -1,7 +1,7 @@
 use std::net::SocketAddr;
 
 use ed25519_consensus::VerificationKey;
-use equity_types::{ EquityError, PeerMsg, TransactionCommand, Broadcast::{ Init, Echo, Ready }, socket_to_ws };
+use equity_types::{ EquityError, PeerMsg, TransactionCommand, Broadcast::{ Init, Echo, Ready }, socket_to_ws, SignedMsg };
 use futures::{SinkExt, StreamExt};
 use tokio::{
     net::{TcpListener, TcpStream},
@@ -128,8 +128,8 @@ pub async fn peer_connection(peer_address: &SocketAddr, context: &Context) -> Re
     // Send ClientMsg
     ws_stream
         .send(
-            context.client.sign_transaction(
-                TransactionCommand::
+            sign_msg(
+                PeerMsg::PeerInit { peer_list:  }
             )
         )
         .await
@@ -187,4 +187,15 @@ async fn p2p_switch(
 
         }
     }
+}
+
+async fn sign_msg(msg: &PeerMsg) -> SignedMsg {
+    let SignOutput { hash, salt, signature } = self.credentials.sign(serde_json::to_string(msg).unwrap()).await.unwrap();
+        SignedMsg {
+            msg: msg.clone(),
+            public_key: self.credentials.public_key,
+            hash,
+            salt,
+            signature
+        }
 }

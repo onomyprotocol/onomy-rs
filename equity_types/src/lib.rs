@@ -49,13 +49,6 @@ pub struct FullMessage {
     pub signature: Signature,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
-pub struct Body {
-    pub public_key: VerificationKey,
-    pub nonce: u64,
-    pub keys_values: BTreeMap<u64, u64>,
-}
-
 #[derive(Debug, thiserror::Error)]
 pub enum EquityError {
     #[error("An api server error occurred {0}")]
@@ -80,18 +73,26 @@ pub enum TransactionCommand {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub enum PeerMsg {
-    PeerInit {
-        peer_list: Vec<VerificationKey>,
-        public_key: VerificationKey,
-        signature: Signature,
-    },
-    Consensus(Consensus)
+
+pub struct SignedMsg {
+    pub msg: PeerMsg,
+    pub public_key: VerificationKey,
+    pub hash: String,
+    pub salt: u64,
+    pub signature: Signature
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub enum Consensus {
 
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub enum PeerMsg {
+    PeerInit {
+        peer_list: Vec<VerificationKey>,
+    },
+    Consensus(Consensus)
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
