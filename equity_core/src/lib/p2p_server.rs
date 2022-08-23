@@ -48,9 +48,9 @@ pub async fn start_p2p_server(
     // Send init validator TX to Seed Peer.
     if seed_address.to_string() != *"0.0.0.0:0" {
         context.client.send_transaction(
-            context.clone().client.credentials.transaction(
+            context.clone().client.sign_transaction(
                 &TransactionCommand::SetValidator { ws: p2p_listener }
-            ).await.unwrap()
+            ).await
         );
     }
 
@@ -128,7 +128,9 @@ pub async fn peer_connection(peer_address: &SocketAddr, context: &Context) -> Re
     // Send ClientMsg
     ws_stream
         .send(
-            
+            context.client.sign_transaction(
+                TransactionCommand::
+            )
         )
         .await
         .unwrap();
