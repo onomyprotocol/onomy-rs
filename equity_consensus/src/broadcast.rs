@@ -81,12 +81,13 @@ impl Brb {
         
         let (brb_tx, mut brb_rx) = mpsc::channel(1000);
         let (brb_one_tx, brb_one_rx) = oneshot::channel();
-        let hash = hash.clone();
+        let hash_spawn = hash.clone();
         let broadcast_msg = broadcast_msg.clone();
+
         tokio::spawn(async move
             {
                 let internal = BrbInternal {
-                    hash,
+                    hash: hash_spawn,
                     msg: broadcast_msg,
                     init: true,
                     echo: Vec::new(),
