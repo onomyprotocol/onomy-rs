@@ -137,7 +137,7 @@ async fn client_switch(
                     // The task will need to hold the Command and anything else related
                     match connection {
                         Ok(()) => {
-                            context.brb.initiate(hash, body.public_key,  BroadcastMsg::Transaction(Transaction {
+                            context.brb.initiate(&transaction.hash, &transaction.public_key,  &BroadcastMsg::Transaction(Transaction {
                                 body: body.clone(),
                                 hash: hash.clone(),
                                 signature: *signature
