@@ -1,4 +1,4 @@
-use std::net::SocketAddr;
+use std::{ net::SocketAddr, collections::HashMap };
 
 use ed25519_consensus::VerificationKey;
 use equity_types::{ EquityError, PeerMsg, TransactionCommand, Broadcast::{ Init, Echo, Ready }, socket_to_ws, SignedMsg };
@@ -80,7 +80,7 @@ async fn handle_connection(
     if let Some(initial_msg) = read.next().await {
         let initial_msg = initial_msg.unwrap();
 
-        if let PeerMsg::PeerInit { peer_list, public_key, signature } =
+        if let PeerMsg::PeerInit { peer_list } =
             serde_json::from_str(&initial_msg.into_text().unwrap()).unwrap() {
 
             }
@@ -118,7 +118,7 @@ fn key_to_string(key: &VerificationKey) -> Result<String, serde_json::Error> {
     }
 }
 
-pub async fn peer_connection(peer_address: &SocketAddr, context: &Context) -> Result<(), Error> {
+pub async fn peer_connection(peer_address: &SocketAddr, peer_public_key: &VerificationKey, context: &Context) -> Result<(), Error> {
     let (mut ws_stream, _) = connect_async(socket_to_ws(peer_address))
         .await
         .expect("Failed to connect");
@@ -129,8 +129,8 @@ pub async fn peer_connection(peer_address: &SocketAddr, context: &Context) -> Re
     ws_stream
         .send(
             sign_msg(
-                PeerMsg::PeerInit { peer_list:  }
-            )
+                &PeerMsg::PeerInit { peer_list: context.peers }
+            ).await
         )
         .await
         .unwrap();
@@ -138,11 +138,27 @@ pub async fn peer_connection(peer_address: &SocketAddr, context: &Context) -> Re
     let (write, mut read) = ws_stream.split();
 
     // Insert the write part of this peer to the peer map.
-    // I do need to receive the peermap, but that will be in handle connection.
-    let (tx, rx) = channel(1000);
-    let rx = ReceiverStream::new(rx);
+    let (tx, rx) = channel::<PeerMsg>(1000);
+        
+    let mut rx = ReceiverStream::new(rx);
 
-    tokio::spawn(rx.map(Ok).forward(write));
+    tokio::spawn(async move {
+        while let Some(msg) = rx.next().await {
+            if let Err(e) = write.send(
+                Message::binary(
+                    serde_json::to_vec(&msg).expect("msg does not have serde serialize trait"))
+                ).await {
+                    println!("{:?}", e);
+                }
+        }
+    });
+
+    let mut peers = context.peers.lock().expect("Lock poisoned");
+
+    peers.set(peer_public_key, Peer{
+        sender: tx,
+        peer_list: Vec::new()
+    });
 
     tokio::spawn(async move {
         while let Some(Ok(msg)) = read.next().await {
@@ -166,7 +182,7 @@ pub async fn peer_connection(peer_address: &SocketAddr, context: &Context) -> Re
 
 async fn p2p_switch(
     peer_msg: PeerMsg, 
-    sender: Sender<Message>,
+    sender: Sender<PeerMsg>,
     context: Context
 ) {
     match peer_msg {

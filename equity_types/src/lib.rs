@@ -42,13 +42,6 @@ pub struct HealthResponse {
 }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
-pub struct FullMessage {
-    pub body: Body,
-    pub hash: String,
-    pub signature: Signature,
-}
-
 #[derive(Debug, thiserror::Error)]
 pub enum EquityError {
     #[error("An api server error occurred {0}")]

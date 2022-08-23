@@ -24,4 +24,4 @@ pub struct Peer {
     pub peer_list: Vec<VerificationKey>,
 }
 
-pub type PeerMap = Arc<Mutex<HashMap<String, Peer>>>;
+pub type PeerMap = Arc<Mutex<HashMap<VerificationKey, Peer>>>;
