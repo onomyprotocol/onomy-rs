@@ -66,24 +66,27 @@ impl Brb {
     // All BRB broadcast messages are either initiated or received.
     // Initiation is prompted by out of network messages (client / new validator) or enabled consensus condition.
     // All in-network messages are Received as part of Brb Broadcast
-    pub async fn initiate (&self, hash: &String, peer: VerificationKey, broadcast_msg: BroadcastMsg) {
+    pub async fn initiate (&self, hash: &String, public_key: &VerificationKey, broadcast_msg: &BroadcastMsg) {
         // First need to check if there is already an initiated BRB instance with this same hash
         if let Some(brb_sender) = self.get(&hash).await {
             // BRB manager exists then treat as Echo
             // Need to define below how to use Echo before completing this part.
-            brb_sender.send(BrbMsg::Echo{
-                peer,
-                BroadcastMsg: broadcast_msg.clone()
-            }).await.unwrap()
+            brb_sender.send(
+                BrbMsg::Echo{
+                    public_key: public_key.clone(),
+                    broadcast_msg: broadcast_msg.clone()
+                }
+            ).await.unwrap()
         }
         
         let (brb_tx, mut brb_rx) = mpsc::channel(1000);
         let (brb_one_tx, brb_one_rx) = oneshot::channel();
-        let hash2 = hash.clone(); 
+        let hash = hash.clone();
+        let broadcast_msg = broadcast_msg.clone();
         tokio::spawn(async move
             {
                 let internal = BrbInternal {
-                    hash: hash2,
+                    hash,
                     msg: broadcast_msg,
                     init: true,
                     echo: Vec::new(),
@@ -93,10 +96,10 @@ impl Brb {
 
                 while let Some(brb_msg) = brb_rx.recv().await {
                     match brb_msg {
-                        BrbMsg::Init { peer, BroadcastMsg } => {
+                        BrbMsg::Init { public_key, broadcast_msg } => {
                             
                         }
-                        BrbMsg::Echo { peer, BroadcastMsg } => {
+                        BrbMsg::Echo { public_key, broadcast_msg } => {
                             
                         }
                         BrbMsg::Ready { hash } => {
@@ -145,12 +148,12 @@ enum BrbCommand {
 #[derive(Debug)]
 enum BrbMsg {
     Init {
-        peer: VerificationKey,
-        BroadcastMsg: BroadcastMsg
+        public_key: VerificationKey,
+        broadcast_msg: BroadcastMsg
     },
     Echo {
-        peer: VerificationKey,
-        BroadcastMsg: BroadcastMsg
+        public_key: VerificationKey,
+        broadcast_msg: BroadcastMsg
     },
     Ready {
         hash: String
