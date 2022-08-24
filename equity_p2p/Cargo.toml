@@ -5,6 +5,8 @@ edition = "2021"
 publish = false
 
 [dependencies]
+equity_types = { path = "../equity_types" }
+
 tokio = { version = "1.19", features = ["full"] }
 tungstenite = "0.17"
 ed25519-consensus = "2"

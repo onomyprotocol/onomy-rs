@@ -160,7 +160,7 @@ pub async fn peer_connection(peer_address: &SocketAddr, peer_public_key: &Verifi
         }
     });
 
-    peers.data.set(peer_public_key, Peer {
+    context.peers.set(peer_public_key, &Peer {
         sender: tx,
         peer_list: Vec::new()
     });
@@ -193,10 +193,10 @@ async fn p2p_switch(
     match peer_msg {
         Broadcast(stage) => {
             match stage {
-                Init { command } => {
+                Init { msg, public_key, signature } => {
 
                 },
-                Echo { command } => {
+                Echo { msg } => {
 
                 },
                 Ready { hash } => {

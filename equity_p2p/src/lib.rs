@@ -4,7 +4,7 @@ use std::{
 };
 
 use tokio::sync::mpsc::Sender;
-use tungstenite::Message;
+use equity_types::PeerMsg;
 use ed25519_consensus::VerificationKey;
 
 use serde_plain;
@@ -22,7 +22,7 @@ use serde_plain;
 
 #[derive(Debug, Clone)]
 pub struct Peer {
-    pub sender: Sender<Message>,
+    pub sender: Sender<PeerMsg>,
     pub peer_list: Vec<VerificationKey>,
 }
 
@@ -38,7 +38,7 @@ impl PeerMap {
         }
     }
 
-    fn get(&self, key: &VerificationKey) -> Peer {
+    pub fn get(&self, key: &VerificationKey) -> Peer {
         self
             .data
             .lock()
@@ -50,7 +50,7 @@ impl PeerMap {
             
     }
 
-    fn set(&self, key: &VerificationKey, peer: &Peer) -> Option<Peer> {
+    pub fn set(&self, key: &VerificationKey, peer: &Peer) -> Option<Peer> {
         self
             .data
             .lock()
