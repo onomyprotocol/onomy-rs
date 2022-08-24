@@ -12,6 +12,7 @@ use tokio::task::JoinHandle;
 use equity_p2p::PeerMap;
 use equity_client::EquityClient;
 use credentials::Keys;
+use ed25519_consensus::VerificationKey;
 
 use crate::{client_server::start_client_server, p2p_server::start_p2p_server, Error};
 
@@ -34,6 +35,7 @@ impl EquityService {
         api_listener: SocketAddr,
         p2p_listener: SocketAddr,
         seed_address: SocketAddr,
+        seed_public_key: VerificationKey,
         db: EquityDatabase,
     ) -> Result<Self, Error> {
 

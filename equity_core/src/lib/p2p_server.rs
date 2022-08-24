@@ -125,15 +125,23 @@ pub async fn peer_connection(peer_address: &SocketAddr, peer_public_key: &Verifi
 
     println!("WebSocket handshake has been successfully completed");
     
+    let peer_list = 
+    context.peers
+        .lock()
+        .expect("Lock poisoned")
+        .keys()
+        .map(|key| key.clone())
+        .collect::<Vec<VerificationKey>>();
+
+
     // Send ClientMsg
     ws_stream
         .send(
-            sign_msg(
-                &PeerMsg::PeerInit { peer_list: context.peers }
-            ).await
-        )
-        .await
-        .unwrap();
+            Message::binary(
+                serde_json::to_vec(&sign_msg(
+                &PeerMsg::PeerInit { peer_list }
+            ).await).unwrap()
+        )).await;
 
     let (write, mut read) = ws_stream.split();
 

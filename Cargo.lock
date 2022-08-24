@@ -329,6 +329,7 @@ dependencies = [
  "rand",
  "serde",
  "serde_json",
+ "serde_plain",
  "sha2 0.10.2",
  "thiserror",
  "tokio",
@@ -896,6 +897,15 @@ checksum = "9b7ce2b32a1aed03c558dc61a5cd328f15aff2dbc17daad8fb8af04d2100e15c"
 dependencies = [
  "itoa",
  "ryu",
+ "serde",
+]
+
+[[package]]
+name = "serde_plain"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "95455e7e29fada2052e72170af226fbe368a4ca33dee847875325d9fdb133858"
+dependencies = [
  "serde",
 ]
 
