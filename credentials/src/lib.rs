@@ -4,7 +4,6 @@ use ed25519_consensus::{Signature, SigningKey, VerificationKey};
 use sha2::{Digest, Sha512};
 use rand::thread_rng;
 use rand::Rng;
-use serde::Serialize;
 
 #[derive(Debug, Clone)]
 pub struct KeyPair {
