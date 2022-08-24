@@ -42,7 +42,7 @@ impl EquityService {
         // Need to add in command line or file based input of keys
         let keys = Keys::Empty;
         
-        let peers = PeerMap::new(Mutex::new(HashMap::new()));
+        let peers = PeerMap::new();
 
         let client = EquityClient::new(&socket_to_ws(&seed_address), keys).await.unwrap();
 

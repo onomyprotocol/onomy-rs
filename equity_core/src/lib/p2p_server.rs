@@ -9,6 +9,7 @@ use tokio::{
     task::JoinHandle,
 };
 
+use equity_p2p::Peer;
 use serde_json::Value;
 
 use tokio_stream::wrappers::ReceiverStream;
@@ -89,14 +90,14 @@ async fn handle_connection(
 
     tokio::spawn(async move {
         while let Some(Ok(msg)) = read.next().await {
-            let tx_clone = tx.clone();
+            let sender = tx.clone();
             let context = context.clone();
             // Need validation
-            let command: PeerMsg = serde_json::from_slice(&msg.into_data()).unwrap();
+            let peer_msg: PeerMsg = serde_json::from_slice(&msg.into_data()).unwrap();
             tokio::spawn(async move {
                 p2p_switch(
-                    command, 
-                    tx_clone, 
+                    peer_msg, 
+                    sender, 
                     context
                 )
             });
@@ -125,11 +126,11 @@ pub async fn peer_connection(peer_address: &SocketAddr, peer_public_key: &Verifi
     println!("WebSocket handshake has been successfully completed");
     
     let peer_list = 
-    context.clone().peers
+    context.peers.data
         .lock()
         .expect("Lock poisoned")
         .keys()
-        .map(|key| key.clone())
+        .map(|key| serde_json::from_str(key).unwrap())
         .collect::<Vec<VerificationKey>>();
 
     // Send ClientMsg
@@ -159,9 +160,7 @@ pub async fn peer_connection(peer_address: &SocketAddr, peer_public_key: &Verifi
         }
     });
 
-    let peers = context.peers.lock().expect("Lock poisoned");
-
-    peers.insert(peer_public_key, Peer{
+    peers.data.set(peer_public_key, Peer {
         sender: tx,
         peer_list: Vec::new()
     });

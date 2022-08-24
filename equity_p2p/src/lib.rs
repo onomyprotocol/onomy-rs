@@ -1,6 +1,6 @@
 use std::{
-    collections::{HashMap, HashMap::get}
-    sync::{Arc, Mutex}
+    collections::HashMap,
+    sync::{ Mutex, Arc }
 };
 
 use tokio::sync::mpsc::Sender;
@@ -26,15 +26,21 @@ pub struct Peer {
     pub peer_list: Vec<VerificationKey>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct PeerMap{
-    data_holder: Mutex<HashMap<String, Peer>>
-};
+    pub data: Arc<Mutex<HashMap<String, Peer>>>
+}
 
 impl PeerMap {
+    pub fn new() -> Self {
+        Self {
+            data: Arc::new(Mutex::new(HashMap::new())),
+        }
+    }
+
     fn get(&self, key: &VerificationKey) -> Peer {
         self
-            .data_holder
+            .data
             .lock()
             .expect("Lock is poisoned")
             .get(&serde_plain::to_string(key)
@@ -46,7 +52,7 @@ impl PeerMap {
 
     fn set(&self, key: &VerificationKey, peer: &Peer) -> Option<Peer> {
         self
-            .data_holder
+            .data
             .lock()
             .expect("Lock is poisoned")
             .insert(
