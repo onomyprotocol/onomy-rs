@@ -1,4 +1,4 @@
-use std::{ net::SocketAddr, collections::HashMap };
+use std::{ net::SocketAddr };
 
 use ed25519_consensus::VerificationKey;
 use equity_types::{ EquityError, PeerMsg, TransactionCommand, Broadcast::{ Init, Echo, Ready }, socket_to_ws, SignedMsg };
@@ -70,24 +70,22 @@ async fn handle_connection(
         .expect("Error during the websocket handshake occurred");
     println!("WebSocket connection established: {}", addr);
 
-    let (write, mut read) = ws_stream.split();
+    let (mut write, mut read) = ws_stream.split();
 
     // Insert the write part of this peer to the peer map.
-    let (tx, rx) = channel(1000);
-    let rx = ReceiverStream::new(rx);
+    let (tx, rx) = channel::<PeerMsg>(1000);
+    let mut rx = ReceiverStream::new(rx);
 
-    tokio::spawn(rx.map(Ok).forward(write));
-
-    if let Some(initial_msg) = read.next().await {
-        let initial_msg = initial_msg.unwrap();
-
-        if let PeerMsg::PeerInit { peer_list } =
-            serde_json::from_str(&initial_msg.into_text().unwrap()).unwrap() {
-
-            }
-
-        // Add Peer to list
-    }
+    tokio::spawn(async move {
+        while let Some(msg) = rx.next().await {
+            if let Err(e) = write.send(
+                Message::binary(
+                    serde_json::to_vec(&msg).expect("msg does not have serde serialize trait"))
+                ).await {
+                    println!("{:?}", e);
+                }
+        }
+    });
 
     tokio::spawn(async move {
         while let Some(Ok(msg)) = read.next().await {
@@ -120,20 +118,19 @@ fn key_to_string(key: &VerificationKey) -> Result<String, serde_json::Error> {
 }
 
 pub async fn peer_connection(peer_address: &SocketAddr, peer_public_key: &VerificationKey, context: &Context) -> Result<(), Error> {
-    let (mut ws_stream, _) = connect_async(socket_to_ws(peer_address))
+    let (ws_stream, _) = connect_async(socket_to_ws(peer_address))
         .await
         .expect("Failed to connect");
 
     println!("WebSocket handshake has been successfully completed");
     
     let peer_list = 
-    context.peers
+    context.clone().peers
         .lock()
         .expect("Lock poisoned")
         .keys()
         .map(|key| key.clone())
         .collect::<Vec<VerificationKey>>();
-
 
     // Send ClientMsg
     ws_stream
@@ -164,7 +161,7 @@ pub async fn peer_connection(peer_address: &SocketAddr, peer_public_key: &Verifi
 
     let peers = context.peers.lock().expect("Lock poisoned");
 
-    peers.set(peer_public_key, Peer{
+    peers.insert(peer_public_key, Peer{
         sender: tx,
         peer_list: Vec::new()
     });
