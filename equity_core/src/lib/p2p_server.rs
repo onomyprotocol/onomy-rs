@@ -20,6 +20,7 @@ use crate::error::Error;
 pub async fn start_p2p_server(
     p2p_listener: SocketAddr,
     seed_address: SocketAddr,
+    seed_public_key: VerificationKey,
     context: Context
 ) -> Result<(SocketAddr, JoinHandle<Result<(), EquityError>>), Error> {
     
@@ -161,7 +162,7 @@ pub async fn peer_connection(peer_address: &SocketAddr, peer_public_key: &Verifi
         }
     });
 
-    let mut peers = context.peers.lock().expect("Lock poisoned");
+    let peers = context.peers.lock().expect("Lock poisoned");
 
     peers.set(peer_public_key, Peer{
         sender: tx,

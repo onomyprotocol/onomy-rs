@@ -44,7 +44,7 @@ impl EquityService {
         
         let peers = PeerMap::new(Mutex::new(HashMap::new()));
 
-        let client = EquityClient::new(&socket_to_ws(seed_address), keys).await.unwrap();
+        let client = EquityClient::new(&socket_to_ws(&seed_address), keys).await.unwrap();
 
         let brb = Brb::new();
 
@@ -60,6 +60,7 @@ impl EquityService {
         let (p2p_address, p2p_server_handle) = start_p2p_server(
             p2p_listener,
             seed_address,
+            seed_public_key,
             context.clone()
         )
         .await?;

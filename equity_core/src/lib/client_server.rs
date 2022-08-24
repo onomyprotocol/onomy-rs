@@ -129,7 +129,7 @@ async fn client_switch(
                 TransactionCommand::SetValidator { ws } => {
                      
                     // 1) Connect
-                    let connection = peer_connection(ws, &context).await;
+                    let connection = peer_connection(ws, &transaction.public_key, &context).await;
                     
                     // 2) Once Connected - Initiate BRB
                     // At end of BRB, then peer connection is added
