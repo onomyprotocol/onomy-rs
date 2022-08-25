@@ -1,13 +1,15 @@
 use std::{ net::SocketAddr };
 
-use ed25519_consensus::VerificationKey;
-use equity_types::{ EquityError, PeerMsg, TransactionCommand, Broadcast::{ Init, Echo, Ready }, socket_to_ws, SignedMsg };
+use ed25519_consensus::{ Signature, VerificationKey };
+use equity_types::{ EquityError, PeerMsg, SignInput, SignOutput, Transaction, TransactionCommand, Broadcast::{ Init, Echo, Ready }, socket_to_ws, SignedMsg, BroadcastMsg };
 use futures::{SinkExt, StreamExt};
 use tokio::{
     net::{TcpListener, TcpStream},
     sync::mpsc::{channel, Sender},
     task::JoinHandle,
 };
+
+use sha2::{Digest, Sha512};
 
 use equity_p2p::Peer;
 use serde_json::Value;
@@ -119,7 +121,7 @@ fn key_to_string(key: &VerificationKey) -> Result<String, serde_json::Error> {
 }
 
 pub async fn peer_connection(peer_address: &SocketAddr, peer_public_key: &VerificationKey, context: &Context) -> Result<(), Error> {
-    let (ws_stream, _) = connect_async(socket_to_ws(peer_address))
+    let (mut ws_stream, _) = connect_async(socket_to_ws(peer_address))
         .await
         .expect("Failed to connect");
 
@@ -137,12 +139,15 @@ pub async fn peer_connection(peer_address: &SocketAddr, peer_public_key: &Verifi
     ws_stream
         .send(
             Message::binary(
-                serde_json::to_vec(&sign_msg(
-                &PeerMsg::PeerInit { peer_list }
-            ).await).unwrap()
+                serde_json::to_vec(
+                    &sign_msg(
+                        &context,
+                    &PeerMsg::PeerInit { peer_list }
+                    ).await
+                ).unwrap()
         )).await;
 
-    let (write, mut read) = ws_stream.split();
+    let (mut write, mut read) = ws_stream.split();
 
     // Insert the write part of this peer to the peer map.
     let (tx, rx) = channel::<PeerMsg>(1000);
@@ -199,7 +204,9 @@ async fn p2p_switch(
         PeerMsg::Broadcast(stage) => {
             match stage {
                 Init { msg, public_key, signature } => {
-
+                    if let Error = verify_signature(&msg, &public_key, &signature) {
+                        return
+                    }  
                 },
                 Echo { msg, public_key, signature } => {
 
@@ -215,13 +222,28 @@ async fn p2p_switch(
     }
 }
 
-async fn sign_msg(msg: &PeerMsg) -> SignedMsg {
-    let SignOutput { hash, salt, signature } = self.credentials.sign(serde_json::to_string(msg).unwrap()).await.unwrap();
+async fn sign_msg(context: &Context, msg: &PeerMsg) -> SignedMsg {
+    let SignOutput { hash, salt, signature } = context.client.credentials.sign(serde_json::to_string(msg).unwrap()).await.unwrap();
         SignedMsg {
             msg: msg.clone(),
-            public_key: self.credentials.public_key,
+            public_key: context.client.credentials.public_key,
             hash,
             salt,
             signature
         }
+}
+
+fn verify_signature(msg: &BroadcastMsg, public_key: &VerificationKey, signature: &Signature) -> Result<(), Error> {
+    let mut digest: Sha512 = Sha512::new();
+
+    digest.update(serde_json::to_string(&SignInput{
+        input: serde_json::to_string(&transaction.command).unwrap(),
+        salt: transaction.salt
+    }).unwrap());
+
+    let hash: String = format!("{:X}", digest.finalize());
+
+    transaction.public_key.verify(&transaction.signature, &hash.as_bytes());
+    
+    Ok(())
 }
