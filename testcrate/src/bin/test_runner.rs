@@ -3,7 +3,7 @@ use std::time::Duration;
 use clap::Parser;
 use common::test_mode::TestMode;
 use equity_client::EquityClient;
-use equity_types::{EquityAddressResponse, Value, Keys};
+use equity_types::{EquityAddressResponse, Value};
 
 const TIMEOUT: Duration = Duration::from_secs(15);
 
@@ -16,7 +16,9 @@ pub struct CliArgs {
 
 #[tokio::main]
 async fn main() {
-    let args = CliArgs::parse();
+    /*
+
+     let args = CliArgs::parse();
     match args.test_mode {
         mode @ (TestMode::Health | TestMode::GetResponse) => {
             let client = EquityClient::new("http://equity_core:4040", Keys::Empty);
@@ -39,4 +41,7 @@ async fn main() {
             }
         }
     }
+    
+    */
+   
 }

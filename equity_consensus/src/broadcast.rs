@@ -86,7 +86,7 @@ impl Brb {
 
         tokio::spawn(async move
             {
-                let internal = BrbInternal {
+                let _internal = BrbInternal {
                     hash: hash_spawn,
                     msg: broadcast_msg,
                     init: true,

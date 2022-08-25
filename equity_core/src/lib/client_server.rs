@@ -8,6 +8,8 @@ use equity_types::{
     PostTransactionResponse, ClientMsg, SignInput, Transaction, TransactionCommand
 };
 
+use credentials::Credentials;
+
 use futures::StreamExt;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha512};
@@ -113,7 +115,7 @@ async fn client_switch(
                 .expect("msg does not have serde serialize trait"))).await.unwrap();
         },
         ClientMsg::Transaction(transaction) => {
-            if let Error = verify_signature(&transaction) {
+            if let false = Credentials::verify_signature(&transaction) {
                 return
             };
             
@@ -183,25 +185,3 @@ async fn set_values(
         msg: "Transaction not recorded to db".to_string(),
     }
 }
-
-
-fn verify_signature(transaction: &Transaction) -> Result<(), Error> {
-    let mut digest: Sha512 = Sha512::new();
-
-    digest.update(serde_json::to_string(&SignInput{
-        input: serde_json::to_string(&transaction.command).unwrap(),
-        salt: transaction.salt
-    }).unwrap());
-
-    let hash: String = format!("{:X}", digest.finalize());
-
-    if let Ok(response) = transaction.public_key.verify(&transaction.signature, &hash.as_bytes()) {
-        return Ok(())
-    }
-
-    return Error
-}
-
-
-
-

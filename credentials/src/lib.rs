@@ -1,6 +1,6 @@
-use equity_types::{ SignInput, SignOutput, BroadcastMsg};
+use equity_types::{ SignInput, SignOutput, BroadcastMsg, Transaction};
 use tokio::sync::oneshot;
-use ed25519_consensus::{Signature, SigningKey, VerificationKey, Error};
+use ed25519_consensus::{Signature, SigningKey, VerificationKey};
 use sha2::{Digest, Sha512};
 use rand::thread_rng;
 use rand::Rng;
@@ -99,9 +99,22 @@ impl Credentials {
         if let Ok(()) = public_key.verify(signature, &hash.as_bytes()) {
             true
         } else { false }
-}
+    }
+
+    pub fn verify_signature(transaction: &Transaction) -> bool {
+        let mut digest: Sha512 = Sha512::new();
     
+        digest.update(serde_json::to_string(&SignInput{
+            input: serde_json::to_string(&transaction.command).unwrap(),
+            salt: transaction.salt
+        }).unwrap());
     
+        let hash: String = format!("{:X}", digest.finalize());
+    
+        if let Ok(()) = transaction.public_key.verify(&transaction.signature, &hash.as_bytes()) {
+            true
+        } else { false }
+    }
 }
 
 #[derive(Debug)]
