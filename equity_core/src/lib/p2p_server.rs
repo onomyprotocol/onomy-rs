@@ -1,8 +1,8 @@
 use std::{ net::SocketAddr };
 
 use credentials::Credentials;
-use ed25519_consensus::{ Signature, VerificationKey };
-use equity_types::{ EquityError, PeerMsg, SignInput, SignOutput, Transaction, TransactionCommand, Broadcast::{ Init, Echo, Ready }, socket_to_ws, SignedMsg, BroadcastMsg };
+use ed25519_consensus::{ VerificationKey };
+use equity_types::{ EquityError, PeerMsg, SignOutput, TransactionCommand, Broadcast::{ Init, Echo, Ready }, socket_to_ws, SignedMsg };
 use futures::{SinkExt, StreamExt};
 use tokio::{
     net::{TcpListener, TcpStream},
