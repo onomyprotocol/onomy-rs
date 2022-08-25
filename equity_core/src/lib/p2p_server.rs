@@ -160,21 +160,26 @@ pub async fn peer_connection(peer_address: &SocketAddr, peer_public_key: &Verifi
         }
     });
 
+    let tx_map = tx.clone();
+
     context.peers.set(peer_public_key, &Peer {
-        sender: tx,
+        sender: tx_map,
         peer_list: Vec::new()
     });
+
+    let context1 = context.clone();
 
     tokio::spawn(async move {
         while let Some(Ok(msg)) = read.next().await {
             let tx_clone = tx.clone();
             // Need validation
             let command: PeerMsg = serde_json::from_slice(&msg.into_data()).unwrap();
+            let context2 = context1.clone();
             tokio::spawn(async move {
                 p2p_switch(
                     command, 
                     tx_clone, 
-                    context.clone()
+                    context2
                 )
             });
         }
