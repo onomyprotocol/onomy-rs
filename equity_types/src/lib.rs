@@ -85,18 +85,22 @@ pub enum PeerMsg {
     PeerInit {
         peer_list: Vec<VerificationKey>,
     },
-    Consensus(Consensus)
+    Broadcast(Broadcast)
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub enum Broadcast {
     Init {
         msg: BroadcastMsg,
+        // Signed by broadcaster
         public_key: VerificationKey,
         signature: Signature
     },    
     Echo {
-        msg: BroadcastMsg
+        msg: BroadcastMsg,
+        // Signed by broadcaster
+        public_key: VerificationKey,
+        signature: Signature
     },
     Ready {
         hash: String

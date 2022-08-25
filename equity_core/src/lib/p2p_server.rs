@@ -191,12 +191,12 @@ async fn p2p_switch(
     context: Context
 ) {
     match peer_msg {
-        Broadcast(stage) => {
+        PeerMsg::Broadcast(stage) => {
             match stage {
                 Init { msg, public_key, signature } => {
 
                 },
-                Echo { msg } => {
+                Echo { msg, public_key, signature } => {
 
                 },
                 Ready { hash } => {
@@ -204,7 +204,7 @@ async fn p2p_switch(
                 }
             }
         },
-        PeerMsg::PeerInit { peer_list, public_key, signature } => {
+        PeerMsg::PeerInit { peer_list } => {
 
         }
     }

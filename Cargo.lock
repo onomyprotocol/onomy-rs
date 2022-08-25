@@ -344,6 +344,7 @@ name = "equity_p2p"
 version = "0.1.0"
 dependencies = [
  "ed25519-consensus",
+ "equity_types",
  "serde_json",
  "serde_plain",
  "tokio",
@@ -365,8 +366,6 @@ version = "0.1.0"
 dependencies = [
  "derive-alias",
  "ed25519-consensus",
- "equity_p2p",
- "equity_storage",
  "futures",
  "hyper",
  "rand",
