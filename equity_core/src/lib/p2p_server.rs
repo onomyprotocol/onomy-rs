@@ -1,5 +1,6 @@
 use std::{ net::SocketAddr };
 
+use credentials::Credentials;
 use ed25519_consensus::{ Signature, VerificationKey };
 use equity_types::{ EquityError, PeerMsg, SignInput, SignOutput, Transaction, TransactionCommand, Broadcast::{ Init, Echo, Ready }, socket_to_ws, SignedMsg, BroadcastMsg };
 use futures::{SinkExt, StreamExt};
@@ -12,7 +13,9 @@ use tokio::{
 use sha2::{Digest, Sha512};
 
 use equity_p2p::Peer;
+
 use serde_json::Value;
+
 
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
@@ -203,13 +206,15 @@ async fn p2p_switch(
     match peer_msg {
         PeerMsg::Broadcast(stage) => {
             match stage {
-                Init { msg, public_key, signature } => {
-                    if let Error = verify_signature(&msg, &public_key, &signature) {
+                Init { msg, public_key, salt, signature } => {
+                    if let false = Credentials::verify_broadcaster(&msg, &public_key, &salt, &signature) {
                         return
-                    }  
+                    }
+                    
+                    
                 },
-                Echo { msg, public_key, signature } => {
-
+                Echo { msg, public_key, salt: u64, signature } => {
+                    
                 },
                 Ready { hash } => {
 
@@ -231,19 +236,4 @@ async fn sign_msg(context: &Context, msg: &PeerMsg) -> SignedMsg {
             salt,
             signature
         }
-}
-
-fn verify_signature(msg: &BroadcastMsg, public_key: &VerificationKey, signature: &Signature) -> Result<(), Error> {
-    let mut digest: Sha512 = Sha512::new();
-
-    digest.update(serde_json::to_string(&SignInput{
-        input: serde_json::to_string(&transaction.command).unwrap(),
-        salt: transaction.salt
-    }).unwrap());
-
-    let hash: String = format!("{:X}", digest.finalize());
-
-    transaction.public_key.verify(&transaction.signature, &hash.as_bytes());
-    
-    Ok(())
 }
