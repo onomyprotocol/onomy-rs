@@ -1,6 +1,6 @@
-use equity_types::{ SignInput, SignOutput };
+use equity_types::{ SignInput, SignOutput, BroadcastMsg};
 use tokio::sync::oneshot;
-use ed25519_consensus::{Signature, SigningKey, VerificationKey};
+use ed25519_consensus::{Signature, SigningKey, VerificationKey, Error};
 use sha2::{Digest, Sha512};
 use rand::thread_rng;
 use rand::Rng;
@@ -85,6 +85,23 @@ impl Credentials {
             None
         }
     }
+
+    pub fn verify_broadcaster(msg: &BroadcastMsg, public_key: &VerificationKey, salt: &u64, signature: &Signature) -> bool {
+        let mut digest: Sha512 = Sha512::new();
+    
+        digest.update(serde_json::to_string(&SignInput{
+            input: serde_json::to_string(msg).unwrap(),
+            salt: salt.clone()
+        }).unwrap());
+    
+        let hash: String = format!("{:X}", digest.finalize());
+
+        if let Ok(()) = public_key.verify(signature, &hash.as_bytes()) {
+            true
+        } else { false }
+}
+    
+    
 }
 
 #[derive(Debug)]
@@ -95,3 +112,6 @@ enum Response {
         signature: Signature
     }
 }
+
+
+

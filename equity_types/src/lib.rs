@@ -94,12 +94,14 @@ pub enum Broadcast {
         msg: BroadcastMsg,
         // Signed by broadcaster
         public_key: VerificationKey,
+        salt: u64,
         signature: Signature
     },    
     Echo {
         msg: BroadcastMsg,
         // Signed by broadcaster
         public_key: VerificationKey,
+        salt: u64,
         signature: Signature
     },
     Ready {

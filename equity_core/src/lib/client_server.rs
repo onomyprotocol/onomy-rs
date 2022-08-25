@@ -115,7 +115,8 @@ async fn client_switch(
         ClientMsg::Transaction(transaction) => {
             if let Error = verify_signature(&transaction) {
                 return
-            }
+            };
+            
             match &transaction.command {
                 TransactionCommand::SetValues { keys_values } => {
                     let response = set_values(
@@ -194,9 +195,11 @@ fn verify_signature(transaction: &Transaction) -> Result<(), Error> {
 
     let hash: String = format!("{:X}", digest.finalize());
 
-    transaction.public_key.verify(&transaction.signature, &hash.as_bytes());
-    
-    Ok(())
+    if let Ok(response) = transaction.public_key.verify(&transaction.signature, &hash.as_bytes()) {
+        return Ok(())
+    }
+
+    return Error
 }
 
 
