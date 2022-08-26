@@ -148,7 +148,7 @@ pub async fn peer_connection(peer_address: &SocketAddr, peer_public_key: &Verifi
                     &PeerMsg::PeerInit { peer_list }
                     ).await
                 ).unwrap()
-        )).await;
+        )).await.unwrap();
 
     let (mut write, mut read) = ws_stream.split();
 

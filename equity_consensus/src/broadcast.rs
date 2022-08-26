@@ -83,11 +83,12 @@ impl Brb {
         let (brb_one_tx, brb_one_rx) = oneshot::channel();
         let hash_spawn = hash.clone();
         let broadcast_msg = broadcast_msg.clone();
+        let self2 = self.clone();
 
         tokio::spawn(async move
             {
                 let _internal = BrbInternal {
-                    hash: hash_spawn,
+                    hash: hash_spawn.clone(),
                     msg: broadcast_msg,
                     init: true,
                     echo: Vec::new(),
@@ -98,7 +99,17 @@ impl Brb {
                 while let Some(brb_msg) = brb_rx.recv().await {
                     match brb_msg {
                         BrbMsg::Init { public_key, broadcast_msg } => {
-                            
+                            // First need to check if there is already an initiated BRB instance with this same hash
+                            if let Some(brb_sender) = self2.get(&hash_spawn).await {
+                                // BRB manager exists then treat as Echo
+                                // Need to define below how to use Echo before completing this part.
+                                brb_sender.send(
+                                    BrbMsg::Echo{
+                                        public_key: public_key.clone(),
+                                        broadcast_msg: broadcast_msg.clone()
+                                    }
+                                ).await.unwrap()
+                            }
                         }
                         BrbMsg::Echo { public_key, broadcast_msg } => {
                             
