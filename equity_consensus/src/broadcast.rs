@@ -99,23 +99,23 @@ impl Brb {
                 while let Some(brb_msg) = brb_rx.recv().await {
                     match brb_msg {
                         BrbMsg::Init { public_key, broadcast_msg } => {
-                            // First need to check if there is already an initiated BRB instance with this same hash
-                            if let Some(brb_sender) = self2.get(&hash_spawn).await {
-                                // BRB manager exists then treat as Echo
-                                // Need to define below how to use Echo before completing this part.
-                                brb_sender.send(
-                                    BrbMsg::Echo{
-                                        public_key: public_key.clone(),
-                                        broadcast_msg: broadcast_msg.clone()
-                                    }
-                                ).await.unwrap()
-                            }
+                            // First need to check if there is already a timeout
+                            // Timeout caused by receiving Echo before Init msg
+                            
                         }
                         BrbMsg::Echo { public_key, broadcast_msg } => {
-                            
+                            if let Some(brb_sender) = self2.get(&hash_spawn).await {
+                                // BRB manager does not exist send timeout
+                                // Broadcast timeout
+                            }
+
+
                         }
                         BrbMsg::Ready { hash } => {
                             
+                        }
+                        BrbMsg::Timeout { hash } => {
+
                         }
                     }
                 }
@@ -169,6 +169,9 @@ enum BrbMsg {
     },
     Ready {
         hash: String
+    },
+    Timeout {
+        hash: String
     }
 }
 
@@ -179,6 +182,7 @@ pub struct BrbInternal {
     init: bool,
     echo: Vec<VerificationKey>,
     ready: Vec<VerificationKey>,
+    timeout: Vec<VerificationKey>,
     commit: bool
 }
 
