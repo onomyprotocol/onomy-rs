@@ -106,6 +106,9 @@ pub enum Broadcast {
     },
     Ready {
         hash: String
+    },
+    Timeout {
+        hash: String
     }
 }
 

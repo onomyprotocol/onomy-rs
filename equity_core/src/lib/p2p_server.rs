@@ -10,8 +10,6 @@ use tokio::{
     task::JoinHandle,
 };
 
-use sha2::{Digest, Sha512};
-
 use equity_p2p::Peer;
 
 use serde_json::Value;
@@ -58,7 +56,7 @@ pub async fn start_p2p_server(
             context.clone().client.sign_transaction(
                 &TransactionCommand::SetValidator { ws: p2p_listener }
             ).await
-        );
+        ).await;
     }
 
     Ok((bound_addr, handle))

@@ -93,6 +93,7 @@ impl Brb {
                     init: true,
                     echo: Vec::new(),
                     ready: Vec::new(),
+                    timeout: Vec::new(),
                     commit: false
                 };
 

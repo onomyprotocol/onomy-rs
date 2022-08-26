@@ -4,7 +4,7 @@ use std::{
 };
 
 use tokio::sync::mpsc::Sender;
-use equity_types::{PeerMsg, BroadcastMsg, Broadcast};
+use equity_types::{PeerMsg, Broadcast};
 use ed25519_consensus::VerificationKey;
 
 use serde_plain;
@@ -62,6 +62,8 @@ impl PeerMap {
     }
 
     pub fn broadcast(&self, msg: Broadcast) {
-
+        for peer in self.data {
+            peer.sender()
+        }
     }
 }
