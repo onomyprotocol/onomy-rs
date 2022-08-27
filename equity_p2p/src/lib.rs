@@ -62,8 +62,16 @@ impl PeerMap {
     }
 
     pub fn broadcast(&self, msg: Broadcast) {
-        for peer in self.data {
-            peer.sender()
+        let peer_map = self.data
+        .lock()
+        .expect("Lock poisoned");
+
+        let senders = peer_map.into_values()
+        .map(|peer| peer.sender)
+        .collect::<Vec<Sender<PeerMsg>>>();
+
+        for sender in senders {
+            sender.send(PeerMsg::Broadcast(msg.clone()));
         }
     }
 }
