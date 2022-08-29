@@ -1,7 +1,9 @@
 use std::{
     collections::HashMap,
-    sync::{ Mutex, Arc }
+    sync::{ Mutex, Arc, futu }
 };
+
+use futures::stream::futures_unordered::FuturesUnordered;
 
 use tokio::sync::mpsc::Sender;
 use equity_types::{PeerMsg, Broadcast};
@@ -61,17 +63,25 @@ impl PeerMap {
             )
     }
 
-    pub fn broadcast(&self, msg: Broadcast) {
+    pub async fn broadcast(&self, msg: Broadcast) {
+        let senders = self.senders();
+
+        let mut send = FuturesUnordered::new();
+
+        for sender in senders {
+            send.push(sender.send(PeerMsg::Broadcast(msg.clone())));
+        }
+
+        send.collect().await;
+    }
+
+    pub fn senders(&self) -> Vec<Sender<PeerMsg>> {
         let peer_map = self.data
         .lock()
         .expect("Lock poisoned");
 
-        let senders = peer_map.into_values()
+        peer_map.clone().into_values()
         .map(|peer| peer.sender)
-        .collect::<Vec<Sender<PeerMsg>>>();
-
-        for sender in senders {
-            sender.send(PeerMsg::Broadcast(msg.clone()));
-        }
+        .collect::<Vec<Sender<PeerMsg>>>()
     }
 }
