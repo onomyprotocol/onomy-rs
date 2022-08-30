@@ -7,7 +7,7 @@ use std::{
 use futures::future::join_all;
 
 
-use tokio::sync::mpsc::{ error::SendError, Sender };
+use tokio::sync::mpsc::Sender;
 use equity_types::{PeerMsg, Broadcast};
 use ed25519_consensus::VerificationKey;
 

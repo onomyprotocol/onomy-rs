@@ -7,7 +7,7 @@ use equity_types::BroadcastMsg;
 // The HashMap
 
 #[derive(Debug, Clone)]
-    pub struct Brb {
+pub struct Brb {
     sender: mpsc::Sender<BrbCommand>
 }
 
@@ -137,8 +137,7 @@ impl Brb {
         }
     }
 
-        // All BRB broadcast messages are either initiated or received.
-    // Initiation is prompted by out of network messages (client / new validator) or enabled consensus condition.
+    // All BRB broadcast messages are either initiated or received.
     // All in-network messages are Received as part of Brb Broadcast
     pub async fn receive (&self, hash: &String, public_key: &VerificationKey, broadcast_msg: &BroadcastMsg) {
         // First need to check if there is already an initiated BRB instance with this same hash
@@ -199,9 +198,6 @@ impl Brb {
                 brb_one_tx.send(true).unwrap();
             }
         );
-
-    pub fn receive () {
-
     }
 
 }

@@ -6,15 +6,9 @@ use rand::thread_rng;
 use rand::Rng;
 
 #[derive(Debug, Clone)]
-pub struct KeyPair {
-    private_key: SigningKey,
-    public_key: VerificationKey
-}
-
-#[derive(Debug, Clone)]
 pub enum Keys {
     Empty,
-    Is(KeyPair)
+    Is(Credentials)
 }
 
 #[derive(Debug, Clone)]

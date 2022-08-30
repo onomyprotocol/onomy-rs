@@ -1,7 +1,7 @@
 use std::{ net::SocketAddr };
 
 use credentials::Credentials;
-use ed25519_consensus::{ VerificationKey };
+use ed25519_consensus::VerificationKey;
 use equity_types::{ EquityError, PeerMsg, SignOutput, TransactionCommand, Broadcast::{ Init, Echo, Ready, Timeout }, socket_to_ws, SignedMsg };
 use futures::{SinkExt, StreamExt};
 use tokio::{
@@ -51,7 +51,7 @@ pub async fn start_p2p_server(
     info!(target: "equity-core", "P2P Server started at: {}", bound_addr);
 
     // Send init validator TX to Seed Peer.
-    if seed_address.to_string() != *"0.0.0.0:0" {
+    if seed_address.to_string() != *"127.0.0.1:4040" {
         context.client.send_transaction(
             context.clone().client.sign_transaction(
                 &TransactionCommand::SetValidator { ws: p2p_listener }
@@ -212,7 +212,9 @@ async fn p2p_switch(
                     
                 },
                 Echo { msg, public_key, salt: u64, signature } => {
-                    
+                    if let false = Credentials::verify_broadcaster(&msg, &public_key, &salt, &signature) {
+                        return
+                    }
                 },
                 Ready { hash } => {
 

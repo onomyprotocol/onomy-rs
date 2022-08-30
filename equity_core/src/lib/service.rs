@@ -1,8 +1,5 @@
-use std::{
-    collections::HashMap,
-    net::SocketAddr,
-    sync::Mutex
-};
+use std::net::SocketAddr;
+    
 
 use equity_storage::EquityDatabase;
 use equity_consensus::Brb;
@@ -11,7 +8,7 @@ use futures::future::join_all;
 use tokio::task::JoinHandle;
 use equity_p2p::PeerMap;
 use equity_client::EquityClient;
-use credentials::Keys;
+use credentials::{ Keys, Credentials };
 use ed25519_consensus::VerificationKey;
 
 use crate::{client_server::start_client_server, p2p_server::start_p2p_server, Error};
@@ -39,11 +36,15 @@ impl EquityService {
         db: EquityDatabase,
     ) -> Result<Self, Error> {
 
+        let credentials = Credentials::new(keys);
+
         // Need to add in command line or file based input of keys
-        let keys = Keys::Empty;
+        let keys = Keys::Is(credentials);
         
         let peers = PeerMap::new();
+        
 
+        // Needs to connect to Localhost if there is no other seed
         let client = EquityClient::new(&socket_to_ws(&seed_address), keys).await.unwrap();
 
         let brb = Brb::new();

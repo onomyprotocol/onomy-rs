@@ -5,14 +5,13 @@ use ed25519_consensus::VerificationKey;
 use equity_types::{
 
     BroadcastMsg, EquityError, HealthResponse,
-    PostTransactionResponse, ClientMsg, SignInput, Transaction, TransactionCommand
+    PostTransactionResponse, ClientMsg, Transaction, TransactionCommand
 };
 
 use credentials::Credentials;
 
 use futures::StreamExt;
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha512};
 use tokio::{
     net::{TcpListener, TcpStream},
     sync::mpsc::{channel, Sender},

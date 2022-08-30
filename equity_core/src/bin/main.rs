@@ -16,9 +16,9 @@ struct CliArgs {
     api_listener: String,
     #[clap(name = "p2p_listener", default_value = "127.0.0.1:5050")]
     p2p_listener: String,
-    #[clap(name = "seed_address", default_value = "0.0.0.0:0000")]
+    #[clap(name = "seed_address", default_value = "127.0.0.1:4040")]
     seed_address: String,
-    #[clap(name = "seed_public_key")]
+    #[clap(name = "seed_public_key", default_value= "0")]
     seed_public_key: String,
 }
 
@@ -31,7 +31,7 @@ async fn main() -> Result<(), Error> {
     
     let mut seed_public_key = None;
 
-    if &args.seed_address != "0.0.0.0:0000" {
+    if &args.seed_address != "127.0.0.1:4040 " {
         let public_key_result = serde_plain::from_str::<VerificationKey>(&args.seed_public_key);
         if let Ok(key) = public_key_result {
             seed_public_key = Some(key);
