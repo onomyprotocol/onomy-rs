@@ -36,7 +36,7 @@ impl EquityService {
         db: EquityDatabase,
     ) -> Result<Self, Error> {
 
-        let credentials = Credentials::new(keys);
+        let credentials = Credentials::new(Keys::Empty);
 
         // Need to add in command line or file based input of keys
         let keys = Keys::Is(credentials);
