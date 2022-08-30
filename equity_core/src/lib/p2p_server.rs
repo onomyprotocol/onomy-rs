@@ -24,7 +24,7 @@ use crate::error::Error;
 pub async fn start_p2p_server(
     p2p_listener: SocketAddr,
     seed_address: SocketAddr,
-    seed_public_key: VerificationKey,
+    _seed_public_key: Option<VerificationKey>,
     context: Context
 ) -> Result<(SocketAddr, JoinHandle<Result<(), EquityError>>), Error> {
     
