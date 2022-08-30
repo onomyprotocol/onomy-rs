@@ -29,12 +29,12 @@ async fn main() -> Result<(), Error> {
     let p2p_listener = SocketAddr::from_str(&args.p2p_listener)?;
     let seed_address = SocketAddr::from_str(&args.seed_address)?;
     
-    let seed_public_key;
+    let seed_public_key = None;
 
     if &args.seed_address != "0.0.0.0:0000" {
         let public_key_result = serde_plain::from_str::<VerificationKey>(&args.seed_public_key);
         if let Ok(key) = public_key_result {
-            seed_public_key = key;
+            seed_public_key = Some(key);
         };
     }
 

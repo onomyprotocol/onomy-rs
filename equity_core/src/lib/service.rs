@@ -35,7 +35,7 @@ impl EquityService {
         api_listener: SocketAddr,
         p2p_listener: SocketAddr,
         seed_address: SocketAddr,
-        seed_public_key: VerificationKey,
+        seed_public_key: Option<VerificationKey>,
         db: EquityDatabase,
     ) -> Result<Self, Error> {
 

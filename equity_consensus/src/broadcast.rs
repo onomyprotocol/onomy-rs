@@ -89,6 +89,7 @@ impl Brb {
             {
                 let _internal = BrbInternal {
                     hash: hash_spawn.clone(),
+                    ctl: "Echo".to_string(),
                     msg: broadcast_msg,
                     init: true,
                     echo: Vec::new(),
@@ -180,6 +181,7 @@ enum BrbMsg {
 pub struct BrbInternal {
     hash: String,
     msg: BroadcastMsg,
+    ctl: String,
     init: bool,
     echo: Vec<VerificationKey>,
     ready: Vec<VerificationKey>,

@@ -1,11 +1,13 @@
 use std::{
     collections::HashMap,
-    sync::{ Mutex, Arc, futu }
+    sync::{ Mutex, Arc }
 };
 
-use futures::stream::futures_unordered::FuturesUnordered;
 
-use tokio::sync::mpsc::Sender;
+use futures::future::join_all;
+
+
+use tokio::sync::mpsc::{ error::SendError, Sender };
 use equity_types::{PeerMsg, Broadcast};
 use ed25519_consensus::VerificationKey;
 
@@ -63,16 +65,13 @@ impl PeerMap {
             )
     }
 
+    
     pub async fn broadcast(&self, msg: Broadcast) {
         let senders = self.senders();
 
-        let mut send = FuturesUnordered::new();
+        let send = senders.iter().map(|sender| sender.send(PeerMsg::Broadcast(msg.clone())));
 
-        for sender in senders {
-            send.push(sender.send(PeerMsg::Broadcast(msg.clone())));
-        }
-
-        send.collect().await;
+        join_all(send).await;
     }
 
     pub fn senders(&self) -> Vec<Sender<PeerMsg>> {
