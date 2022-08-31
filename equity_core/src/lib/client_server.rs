@@ -129,21 +129,10 @@ async fn client_switch(
                         .expect("msg does not have serde serialize trait"))).await.unwrap();
                 },
                 TransactionCommand::SetValidator { ws } => {
-                     
-                    // 1) Connect
-                    let connection = peer_connection(ws, &transaction.public_key, &context).await;
-                    
-                    // 2) Once Connected - Initiate BRB
-                    // At end of BRB, then peer connection is added
-                    // to the validator list.  So, BRB needs to store this connection
-                    // The task will need to hold the Command and anything else related
-                    match connection {
-                        Ok(()) => {
-                            context.brb.initiate(&transaction.hash, &transaction.public_key,  &BroadcastMsg::Transaction(transaction.clone()));
-                        },
-                        Error => {
-                            return
-                        }
+                    if let Ok(()) = peer_connection(ws, &transaction.public_key, &context).await {
+                        context.brb.initiate(&transaction.hash, &transaction.public_key,  &BroadcastMsg::Transaction(transaction.clone())).await;
+                    } else {
+                        return
                     }
                 }
             }
