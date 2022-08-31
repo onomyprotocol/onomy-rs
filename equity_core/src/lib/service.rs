@@ -3,7 +3,7 @@ use std::net::SocketAddr;
 
 use equity_storage::EquityDatabase;
 use equity_consensus::Brb;
-use equity_types::{ EquityError, socket_to_ws };
+use equity_types::{ EquityError, socket_to_ws, TransactionCommand };
 use futures::future::join_all;
 use tokio::task::JoinHandle;
 use equity_p2p::PeerMap;
@@ -23,7 +23,7 @@ pub struct EquityService {
 pub struct Context {
     pub peers: PeerMap,
     pub db: EquityDatabase,
-    pub client: EquityClient,
+    pub credentials: Credentials,
     pub brb: Brb
 }
 
@@ -39,32 +39,39 @@ impl EquityService {
         let credentials = Credentials::new(Keys::Empty);
 
         // Need to add in command line or file based input of keys
-        let keys = Keys::Is(credentials);
+        let keys = Keys::Is(credentials.clone());
         
         let peers = PeerMap::new();
-        
-
-        // Needs to connect to Localhost if there is no other seed
-        let client = EquityClient::new(&socket_to_ws(&seed_address), keys).await.unwrap();
 
         let brb = Brb::new();
 
         let context = Context {
             peers,
             db,
-            client,
+            credentials,
             brb
         };
 
         let (api_address, api_server_handle) =
             start_client_server(api_listener, context.clone()).await?;
+
+        // Needs to connect to Localhost if there is no other seed
+        let client = EquityClient::new(&socket_to_ws(&seed_address), keys).await.unwrap();
+
         let (p2p_address, p2p_server_handle) = start_p2p_server(
             p2p_listener,
-            seed_address,
-            seed_public_key,
-            context.clone()
+            context
         )
         .await?;
+
+        // Send init validator TX to Seed Peer.
+        if seed_address.to_string() != *"127.0.0.1:4040" {
+            client.send_transaction(
+                client.sign_transaction(
+                    &TransactionCommand::SetValidator { ws: p2p_listener }
+                ).await
+            ).await;
+        }
 
         let tasks = vec![api_server_handle, p2p_server_handle];
 

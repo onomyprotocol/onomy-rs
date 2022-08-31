@@ -1,4 +1,4 @@
-use equity_types::{ SignInput, SignOutput, BroadcastMsg, Transaction};
+use equity_types::{ SignInput, SignOutput, BroadcastMsg, Transaction, PeerMsg, SignedMsg };
 use tokio::sync::oneshot;
 use ed25519_consensus::{Signature, SigningKey, VerificationKey};
 use sha2::{Digest, Sha512};
@@ -78,6 +78,17 @@ impl Credentials {
         } else {
             None
         }
+    }
+
+    pub async fn sign_msg(&self, msg: &PeerMsg) -> SignedMsg {
+        let SignOutput { hash, salt, signature } = self.sign(serde_json::to_string(msg).unwrap()).await.unwrap();
+            SignedMsg {
+                msg: msg.clone(),
+                public_key: self.public_key,
+                hash,
+                salt,
+                signature
+            }
     }
 
     pub fn verify_broadcaster(msg: &BroadcastMsg, public_key: &VerificationKey, salt: &u64, signature: &Signature) -> bool {

@@ -2,7 +2,7 @@ use std::{ net::SocketAddr };
 
 use credentials::Credentials;
 use ed25519_consensus::VerificationKey;
-use equity_types::{ EquityError, PeerMsg, SignOutput, TransactionCommand, Broadcast::{ Init, Echo, Ready, Timeout }, socket_to_ws, SignedMsg };
+use equity_types::{ EquityError, PeerMsg, Broadcast::{ Init, Echo, Ready, Timeout }, socket_to_ws };
 use futures::{SinkExt, StreamExt};
 use tokio::{
     net::{TcpListener, TcpStream},
@@ -23,8 +23,6 @@ use crate::error::Error;
 
 pub async fn start_p2p_server(
     p2p_listener: SocketAddr,
-    seed_address: SocketAddr,
-    _seed_public_key: Option<VerificationKey>,
     context: Context
 ) -> Result<(SocketAddr, JoinHandle<Result<(), EquityError>>), Error> {
     
@@ -47,18 +45,7 @@ pub async fn start_p2p_server(
         }
         Ok(())
     });
-
     info!(target: "equity-core", "P2P Server started at: {}", bound_addr);
-
-    // Send init validator TX to Seed Peer.
-    if seed_address.to_string() != *"127.0.0.1:4040" {
-        context.client.send_transaction(
-            context.clone().client.sign_transaction(
-                &TransactionCommand::SetValidator { ws: p2p_listener }
-            ).await
-        ).await;
-    }
-
     Ok((bound_addr, handle))
 }
 
@@ -141,8 +128,7 @@ pub async fn peer_connection(peer_address: &SocketAddr, peer_public_key: &Verifi
         .send(
             Message::binary(
                 serde_json::to_vec(
-                    &sign_msg(
-                        &context,
+                    &context.credentials.sign_msg(
                     &PeerMsg::PeerInit { peer_list }
                     ).await
                 ).unwrap()
@@ -208,10 +194,8 @@ async fn p2p_switch(
                     if let false = Credentials::verify_broadcaster(&msg, &public_key, &salt, &signature) {
                         return
                     }
-                    
-                    
                 },
-                Echo { msg, public_key, salt: u64, signature } => {
+                Echo { msg, public_key, salt, signature } => {
                     if let false = Credentials::verify_broadcaster(&msg, &public_key, &salt, &signature) {
                         return
                     }
@@ -228,15 +212,4 @@ async fn p2p_switch(
 
         }
     }
-}
-
-async fn sign_msg(context: &Context, msg: &PeerMsg) -> SignedMsg {
-    let SignOutput { hash, salt, signature } = context.client.credentials.sign(serde_json::to_string(msg).unwrap()).await.unwrap();
-        SignedMsg {
-            msg: msg.clone(),
-            public_key: context.client.credentials.public_key,
-            hash,
-            salt,
-            signature
-        }
 }
