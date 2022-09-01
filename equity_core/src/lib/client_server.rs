@@ -25,7 +25,7 @@ use tracing::info;
 use crate::error::Error;
 
 use crate::service::Context;
-use crate::p2p_server::peer_connection;
+use crate::p2p_server::init_connection;
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Peer {
@@ -129,7 +129,7 @@ async fn client_switch(
                         .expect("msg does not have serde serialize trait"))).await.unwrap();
                 },
                 TransactionCommand::SetValidator { ws } => {
-                    if let Ok(()) = peer_connection(ws, &transaction.public_key, &context).await {
+                    if let Ok(()) = init_connection(ws, &transaction.public_key, &context).await {
                         context.brb.initiate(&transaction.hash, &transaction.public_key,  &BroadcastMsg::Transaction(transaction.clone())).await;
                     } else {
                         return

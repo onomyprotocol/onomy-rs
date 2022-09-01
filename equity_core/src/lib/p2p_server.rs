@@ -108,7 +108,7 @@ fn key_to_string(key: &VerificationKey) -> Result<String, serde_json::Error> {
     }
 }
 
-pub async fn peer_connection(peer_address: &SocketAddr, peer_public_key: &VerificationKey, context: &Context) -> Result<(), Error> {
+pub async fn init_connection(peer_address: &SocketAddr, peer_public_key: &VerificationKey, context: &Context) -> Result<(), Error> {
     let (mut ws_stream, _) = connect_async(socket_to_ws(peer_address))
         .await
         .expect("Failed to connect");
