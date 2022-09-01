@@ -87,7 +87,7 @@ impl Brb {
 
         tokio::spawn(async move
             {
-                let _internal = BrbInternal {
+                let internal = BrbInternal {
                     hash: hash_spawn.clone(),
                     ctl: "Echo".to_string(),
                     msg: broadcast_msg,
@@ -103,12 +103,16 @@ impl Brb {
                         BrbMsg::Init { public_key, broadcast_msg } => {
                             // First need to check if there is already a timeout
                             // Timeout caused by receiving Echo before Init msg
+                            if internal.ctl == "Timeout".to_string() {
+                                return
+                            };
                             
                         }
                         BrbMsg::Echo { public_key, broadcast_msg } => {
                             if let Some(brb_sender) = self2.get(&hash_spawn).await {
                                 // BRB manager does not exist send timeout
                                 // Broadcast timeout
+                                broad
                             }
 
 
