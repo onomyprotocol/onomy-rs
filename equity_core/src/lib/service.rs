@@ -11,7 +11,7 @@ use equity_client::EquityClient;
 use credentials::{ Keys, Credentials };
 use ed25519_consensus::VerificationKey;
 
-use crate::{client_server::start_client_server, p2p_server::start_p2p_server, Error};
+use crate::{client_server::start_client_server, Error};
 
 pub struct EquityService {
     pub api_address: std::net::SocketAddr,
@@ -21,10 +21,9 @@ pub struct EquityService {
 
 #[derive(Debug, Clone)]
 pub struct Context {
-    pub peers: PeerMap,
+    pub brb: Brb,
     pub db: EquityDatabase,
-    pub credentials: Credentials,
-    pub brb: Brb
+    pub credentials: Credentials
 }
 
 impl EquityService {
@@ -40,13 +39,10 @@ impl EquityService {
 
         // Need to add in command line or file based input of keys
         let keys = Keys::Is(credentials.clone());
-        
-        let peers = PeerMap::new();
 
         let brb = Brb::new();
 
         let context = Context {
-            peers,
             db,
             credentials,
             brb

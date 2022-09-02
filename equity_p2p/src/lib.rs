@@ -8,10 +8,32 @@ use futures::future::join_all;
 
 
 use tokio::sync::mpsc::Sender;
-use equity_types::{PeerMsg, Broadcast};
+
 use ed25519_consensus::VerificationKey;
 
 use serde_plain;
+
+use std::{ net::SocketAddr };
+
+use credentials::Credentials;
+use equity_types::{ EquityError, PeerMsg, Broadcast };
+use futures::{SinkExt, StreamExt};
+use tokio::{
+    net::{TcpListener, TcpStream},
+    sync::mpsc::{channel, Sender},
+    task::JoinHandle,
+};
+
+use equity_p2p::Peer;
+
+use serde_json::Value;
+
+
+use tokio_stream::wrappers::ReceiverStream;
+use tokio_tungstenite::{connect_async, tungstenite::Message};
+use tracing::info;
+use crate::service::Context;
+use crate::error::Error;
 
 
 // Phase 1: Peers will be added by direct API Request to validator
@@ -35,17 +57,11 @@ pub struct P2P{
     pub peer_map: Arc<Mutex<HashMap<String, Peer>>,
 }
 
-impl PeerMap {
-    pub fn new() -> Self {
-        Self {
-            data: Arc::new(Mutex::new(HashMap::new())),
-        }
-    }
-
-    pub async fn start_server(
-        p2p_listener: SocketAddr,
-        context: Context
+impl P2P {
+    pub async fn init(
+        p2p_listener: SocketAddr
     ) -> Result<(SocketAddr, JoinHandle<Result<(), EquityError>>), Error> {
+        let peer_map = Arc::new(Mutex::new(HashMap::new()));
         
         let try_socket = TcpListener::bind(&p2p_listener).await;
         let listener = try_socket.expect("Failed to bind");
