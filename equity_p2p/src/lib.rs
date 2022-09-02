@@ -31,8 +31,8 @@ pub struct Peer {
 }
 
 #[derive(Debug, Clone)]
-pub struct PeerMap{
-    pub data: Arc<Mutex<HashMap<String, Peer>>>
+pub struct P2P{
+    pub peer_map: Arc<Mutex<HashMap<String, Peer>>,
 }
 
 impl PeerMap {
@@ -40,6 +40,34 @@ impl PeerMap {
         Self {
             data: Arc::new(Mutex::new(HashMap::new())),
         }
+    }
+
+    pub async fn start_server(
+        p2p_listener: SocketAddr,
+        context: Context
+    ) -> Result<(SocketAddr, JoinHandle<Result<(), EquityError>>), Error> {
+        
+        let try_socket = TcpListener::bind(&p2p_listener).await;
+        let listener = try_socket.expect("Failed to bind");
+        let bound_addr = listener.local_addr().unwrap();
+    
+        info!(target: "equity-core", "Starting P2P Server");
+    
+        let context_handle_connection = context.clone();
+    
+        let handle = tokio::spawn(async move {
+            // Let's spawn the handling of each connection in a separate task.
+            while let Ok((stream, addr)) = listener.accept().await {
+                tokio::spawn(handle_connection(
+                    stream,
+                    addr,
+                    context_handle_connection.clone()
+                ));
+            }
+            Ok(())
+        });
+        info!(target: "equity-core", "P2P Server started at: {}", bound_addr);
+        Ok((bound_addr, handle))
     }
 
     pub fn get(&self, key: &VerificationKey) -> Peer {
