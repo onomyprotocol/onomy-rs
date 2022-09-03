@@ -303,6 +303,7 @@ name = "equity_consensus"
 version = "0.1.0"
 dependencies = [
  "ed25519-consensus",
+ "equity_p2p",
  "equity_types",
  "sha2 0.10.2",
  "tokio",

@@ -130,7 +130,7 @@ async fn client_switch(
                 },
                 TransactionCommand::SetValidator { ws } => {
                     if let Ok(()) = peer_connection(ws, &transaction.public_key, &context).await {
-                        context.brb.initiate(&transaction.hash, &transaction.public_key,  &BroadcastMsg::Transaction(transaction.clone())).await;
+                        context.brb.initiate(context.peers, &transaction.hash, &transaction.public_key,  &BroadcastMsg::Transaction(transaction.clone())).await;
                     } else {
                         return
                     }

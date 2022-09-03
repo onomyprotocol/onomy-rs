@@ -194,6 +194,7 @@ async fn p2p_switch(
                     if let false = Credentials::verify_broadcaster(&msg, &public_key, &salt, &signature) {
                         return
                     }
+                    
                 },
                 Echo { msg, public_key, salt, signature } => {
                     if let false = Credentials::verify_broadcaster(&msg, &public_key, &salt, &signature) {
@@ -203,7 +204,7 @@ async fn p2p_switch(
                 Ready { hash } => {
 
                 },
-                Timeout { hash: String } => {
+                Timeout { hash } => {
                     
                 }
             }

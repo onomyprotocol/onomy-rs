@@ -6,6 +6,7 @@ publish = false
 
 [dependencies]
 equity_types = { path = "../equity_types" }
+equity_p2p = { path = "../equity_p2p"}
 
 sha2 = "0.10"
 tokio = { version = "1.19", features = ["full"] }
