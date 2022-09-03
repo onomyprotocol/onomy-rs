@@ -112,7 +112,7 @@ impl Brb {
                             if let Some(brb_sender) = self2.get(&hash_spawn).await {
                                 // BRB manager does not exist send timeout
                                 // Broadcast timeout
-                                broad
+                                
                             }
 
 
