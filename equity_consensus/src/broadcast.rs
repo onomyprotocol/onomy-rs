@@ -2,7 +2,9 @@ use std::collections::HashMap;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 use ed25519_consensus::{Signature, VerificationKey};
-use equity_types::BroadcastMsg;
+use equity_types::{ BroadcastMsg, Broadcast };
+use equity_p2p::PeerMap;
+
 
 // The HashMap
 
@@ -46,7 +48,7 @@ impl Brb {
                 }
             }
         );
-        Brb {
+        Self {
             sender: tx
         }
     }
@@ -66,7 +68,7 @@ impl Brb {
     // All BRB broadcast messages are either initiated or received.
     // Initiation is prompted by out of network messages (client / new validator) or enabled consensus condition.
     // All in-network messages are Received as part of Brb Broadcast
-    pub async fn initiate (&self, hash: &String, public_key: &VerificationKey, broadcast_msg: &BroadcastMsg) {
+    pub async fn initiate (&self, peers: PeerMap, hash: &String, public_key: &VerificationKey, broadcast_msg: &BroadcastMsg) {
         // First need to check if there is already an initiated BRB instance with this same hash
         if let Some(brb_sender) = self.get(&hash).await {
             // BRB manager exists then treat as Echo
@@ -105,17 +107,17 @@ impl Brb {
                             // Timeout caused by receiving Echo before Init msg
                             if internal.ctl == "Timeout".to_string() {
                                 return
-                            };
-                            
+                            }
                         }
                         BrbMsg::Echo { public_key, broadcast_msg } => {
-                            if let Some(brb_sender) = self2.get(&hash_spawn).await {
+                            if let Some(brb_sender) = self2.get(&hash_spawn.clone()).await {
                                 // BRB manager does not exist send timeout
                                 // Broadcast timeout
-                                
+                                peers.broadcast(
+                                    Broadcast::Timeout {
+                                        hash: hash_spawn.clone()
+                                }).await
                             }
-
-
                         }
                         BrbMsg::Ready { hash } => {
                             
