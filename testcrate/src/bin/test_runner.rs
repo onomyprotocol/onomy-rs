@@ -3,7 +3,7 @@ use std::time::Duration;
 use clap::Parser;
 use common::test_mode::TestMode;
 use equity_client::EquityClient;
-use equity_types::{EquityAddressResponse, Value};
+use equity_types::{EquityAddressResponse, IntValue};
 
 const TIMEOUT: Duration = Duration::from_secs(15);
 

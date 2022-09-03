@@ -2,6 +2,7 @@ use std::{collections::BTreeMap, net::SocketAddr};
 use derive_alias::derive_alias;
 use ed25519_consensus::{Signature, VerificationKey};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 // TODO common derive macro
 
@@ -19,13 +20,13 @@ pub struct EquityTx {
 }
 
 derive_common! {
-pub struct Value(pub u64);
+pub struct IntValue(pub u64);
 }
 
 derive_common! {
 pub struct EquityAddressResponse {
     pub owner: String,
-    pub value: Value,
+    pub value: IntValue,
 }
 }
 
@@ -145,5 +146,13 @@ pub fn socket_to_ws(addr: &SocketAddr) -> String {
     let mut ws_addr = "ws://".to_string();
     ws_addr.push_str(&addr.to_string());
     return ws_addr
+}
+
+pub fn key_to_string(key: &VerificationKey) -> Result<String, serde_json::Error> {
+    let result = serde_json::from_slice::<Value>(&key.to_bytes());
+    match result {
+        Ok(val) => Ok(val.to_string()),
+        Err(e) => Err(e)
+    }
 }
 

@@ -4,7 +4,7 @@ use clap::Parser;
 use ed25519_consensus::VerificationKey;
 use equity_core::{EquityService, Error};
 use equity_storage::EquityDatabase;
-use equity_types::Value;
+use equity_types::IntValue;
 use tracing::info;
 
 use serde_plain;
@@ -63,5 +63,5 @@ fn initialize_logger() {
 }
 
 fn genesis_data(db: &EquityDatabase) {
-    let _ = db.set("testkey", Value(1337));
+    let _ = db.set("testkey", IntValue(1337));
 }

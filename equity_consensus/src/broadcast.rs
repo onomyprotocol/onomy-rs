@@ -1,8 +1,9 @@
 use std::collections::HashMap;
+use std::collections::HashSet;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 use ed25519_consensus::{Signature, VerificationKey};
-use equity_types::{ BroadcastMsg, Broadcast };
+use equity_types::{ BroadcastMsg, Broadcast, key_to_string };
 use equity_p2p::PeerMap;
 
 
@@ -89,14 +90,14 @@ impl Brb {
 
         tokio::spawn(async move
             {
-                let internal = BrbInternal {
+                let mut internal = BrbInternal {
                     hash: hash_spawn.clone(),
                     ctl: "Echo".to_string(),
                     msg: broadcast_msg,
                     init: true,
-                    echo: Vec::new(),
-                    ready: Vec::new(),
-                    timeout: Vec::new(),
+                    echo: HashSet::new(),
+                    ready: HashSet::new(),
+                    timeout: HashSet::new(),
                     commit: false
                 };
 
@@ -108,9 +109,27 @@ impl Brb {
                             if internal.ctl == "Timeout".to_string() {
                                 return
                             }
+
+                            // Check if this broadcast has already been initialized
+                            // If broadcast has been initialized, then treat init as echo
+                            if let Some(brb_sender) = self2.get(&hash_spawn.clone()).await {
+                                // Check that vec does not have public_key
+                                // This results in bool, do we want to punish for duplicate?
+                                internal.echo.insert(key_to_string(&public_key).unwrap());
+                                
+                                // BRB manager does not exist send timeout
+                                // Broadcast timeout
+                                peers.broadcast(
+                                    Broadcast::Timeout {
+                                        hash: hash_spawn.clone()
+                                }).await
+                            }
+
                         }
                         BrbMsg::Echo { public_key, broadcast_msg } => {
                             if let Some(brb_sender) = self2.get(&hash_spawn.clone()).await {
+                                internal.ctl = "Timeout".to_string();
+                                
                                 // BRB manager does not exist send timeout
                                 // Broadcast timeout
                                 peers.broadcast(
@@ -171,9 +190,9 @@ impl Brb {
                     ctl: "Echo".to_string(),
                     msg: broadcast_msg,
                     init: true,
-                    echo: Vec::new(),
-                    ready: Vec::new(),
-                    timeout: Vec::new(),
+                    echo: HashSet::new(),
+                    ready: HashSet::new(),
+                    timeout: HashSet::new(),
                     commit: false
                 };
 
@@ -248,9 +267,9 @@ pub struct BrbInternal {
     msg: BroadcastMsg,
     ctl: String,
     init: bool,
-    echo: Vec<VerificationKey>,
-    ready: Vec<VerificationKey>,
-    timeout: Vec<VerificationKey>,
+    echo: HashSet<String>,
+    ready: HashSet<String>,
+    timeout: HashSet<String>,
     commit: bool
 }
 
