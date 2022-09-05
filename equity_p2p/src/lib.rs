@@ -83,4 +83,12 @@ impl PeerMap {
         .map(|peer| peer.sender)
         .collect::<Vec<Sender<PeerMsg>>>()
     }
+
+    pub fn cardinality(&self) -> usize {
+        let peer_map = self.data
+        .lock()
+        .expect("Lock poisoned");
+
+        peer_map.len()
+    }
 }

@@ -86,7 +86,7 @@ impl Brb {
         let (brb_one_tx, brb_one_rx) = oneshot::channel();
         let hash_spawn = hash.clone();
         let broadcast_msg = broadcast_msg.clone();
-        let self2 = self.clone();
+        let self_internal = self.clone();
 
         tokio::spawn(async move
             {
@@ -109,33 +109,63 @@ impl Brb {
                             if internal.ctl == "Timeout".to_string() {
                                 return
                             }
+                            // If Init did not initiate the BRB then it is a timeout.  Within the strict model
+                            // of communication required by this protocol.  Is that too strict?
 
                             // Check if this broadcast has already been initialized
                             // If broadcast has been initialized, then treat init as echo
-                            if let Some(brb_sender) = self2.get(&hash_spawn.clone()).await {
-                                // Check that vec does not have public_key
+                            if let Some(_brb_sender) = self_internal.get(&hash_spawn.clone()).await {
+                                // Add public key to hashset
                                 // This results in bool, do we want to punish for duplicate?
-                                internal.echo.insert(key_to_string(&public_key).unwrap());
-                                
-                                // BRB manager does not exist send timeout
-                                // Broadcast timeout
-                                peers.broadcast(
-                                    Broadcast::Timeout {
-                                        hash: hash_spawn.clone()
-                                }).await
+                                let _nonexists = internal.echo.insert(key_to_string(&public_key).unwrap());
                             }
 
                         }
                         BrbMsg::Echo { public_key, broadcast_msg } => {
-                            if let Some(brb_sender) = self2.get(&hash_spawn.clone()).await {
-                                internal.ctl = "Timeout".to_string();
-                                
-                                // BRB manager does not exist send timeout
-                                // Broadcast timeout
-                                peers.broadcast(
-                                    Broadcast::Timeout {
-                                        hash: hash_spawn.clone()
-                                }).await
+                            if let Some(_brb_sender) = self_internal.get(&hash_spawn.clone()).await {
+                                // Add public key to hashset
+                                // This results in bool, do we want to punish for duplicate echo?
+                                let _nonexists = internal.echo.insert(key_to_string(&public_key).unwrap());
+
+                                if internal.ctl == "Echo".to_string() {
+                                    // If BRB in ctl = "Echo" and cardinality of internal.echo = (n+t)/2 broadcast 
+                                    // Then broadcast "Ready"
+                                    
+                                    // Cardinality of peers is going to get contentious - need to create manager
+                                    if internal.echo.len() > peers.cardinality()/2 {
+                                        // Broadcast Ready
+                                        peers.broadcast(
+                                        Broadcast::Ready {
+                                            hash: hash_spawn.clone()
+                                        }).await;
+                                        
+                                        internal.ctl = "Ready".to_string();
+                                    }
+                                }
+
+                                if internal.ctl == "Ready".to_string() {
+                                    // Step 2 (Ready) Bracha BRB: cardinality of internal.
+                                }
+
+
+                            } else {
+                                // If BRB instance does not exist for msg.hash then Timeout
+
+                                // Add public key to echo hashset regardless of ctl
+                                // This results in bool, do we want to punish for duplicate echo?
+                                let _nonexists = internal.echo.insert(key_to_string(&public_key).unwrap());
+
+                                if internal.ctl == "Timeout" {
+                                    
+                                    internal.ctl = "Timeout".to_string();
+
+                                    // BRB manager does not exist send timeout
+                                    // Broadcast timeout
+                                    peers.broadcast(
+                                        Broadcast::Timeout {
+                                            hash: hash_spawn.clone()
+                                    }).await;
+                                }
                             }
                         }
                         BrbMsg::Ready { hash } => {
@@ -161,70 +191,6 @@ impl Brb {
             Err(_) => println!("the sender dropped"),
         }
     }
-
-    // All BRB broadcast messages are either initiated or received.
-    // All in-network messages are Received as part of Brb Broadcast
-    pub async fn receive (&self, hash: &String, public_key: &VerificationKey, broadcast_msg: &BroadcastMsg) {
-        // First need to check if there is already an initiated BRB instance with this same hash
-        if let Some(brb_sender) = self.get(&hash).await {
-            // BRB manager exists then treat as Echo
-            // Need to define below how to use Echo before completing this part.
-            brb_sender.send(
-                BrbMsg::Echo{
-                    public_key: public_key.clone(),
-                    broadcast_msg: broadcast_msg.clone()
-                }
-            ).await.unwrap()
-        }
-        
-        let (brb_tx, mut brb_rx) = mpsc::channel(1000);
-        let (brb_one_tx, brb_one_rx) = oneshot::channel();
-        let hash_spawn = hash.clone();
-        let broadcast_msg = broadcast_msg.clone();
-        let self2 = self.clone();
-
-        tokio::spawn(async move
-            {
-                let _internal = BrbInternal {
-                    hash: hash_spawn.clone(),
-                    ctl: "Echo".to_string(),
-                    msg: broadcast_msg,
-                    init: true,
-                    echo: HashSet::new(),
-                    ready: HashSet::new(),
-                    timeout: HashSet::new(),
-                    commit: false
-                };
-
-                while let Some(brb_msg) = brb_rx.recv().await {
-                    match brb_msg {
-                        BrbMsg::Init { public_key, broadcast_msg } => {
-                            // First need to check if there is already a timeout
-                            // Timeout caused by receiving Echo before Init msg
-                            
-                        }
-                        BrbMsg::Echo { public_key, broadcast_msg } => {
-                            if let Some(brb_sender) = self2.get(&hash_spawn).await {
-                                // BRB manager does not exist send timeout
-                                // Broadcast timeout
-                            }
-
-
-                        }
-                        BrbMsg::Ready { hash } => {
-                            
-                        }
-                        BrbMsg::Timeout { hash } => {
-
-                        }
-                    }
-                }
-
-                brb_one_tx.send(true).unwrap();
-            }
-        );
-    }
-
 }
 
 /// Multiple different commands are multiplexed over a single channel.
