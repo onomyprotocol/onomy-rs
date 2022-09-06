@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 use ed25519_consensus::{Signature, VerificationKey};
@@ -90,96 +91,97 @@ impl Brb {
 
         tokio::spawn(async move
             {
-                let mut internal = BrbInternal {
+                let mut internal = Arc::new(Mutex::new(BrbInternal {
                     hash: hash_spawn.clone(),
-                    ctl: "Echo".to_string(),
+                    ctl: Arc::new(Mutex::new("Echo".to_string())),
                     msg: broadcast_msg,
-                    init: true,
-                    echo: HashSet::new(),
-                    ready: HashSet::new(),
-                    timeout: HashSet::new(),
-                    commit: false
-                };
+                    init: Arc::new(Mutex::new(true)),
+                    tally: Arc::new(Mutex::new(HashMap::new())),
+                    commit: Arc::new(Mutex::new(false))
+                }));
 
                 while let Some(brb_msg) = brb_rx.recv().await {
-                    match brb_msg {
-                        BrbMsg::Init { public_key, broadcast_msg } => {
-                            // First need to check if there is already a timeout
-                            // Timeout caused by receiving Echo before Init msg
-                            if internal.ctl == "Timeout".to_string() {
-                                return
-                            }
-                            // If Init did not initiate the BRB then it is a timeout.  Within the strict model
-                            // of communication required by this protocol.  Is that too strict?
+                    let internal_handler = internal.clone();
 
-                            // Check if this broadcast has already been initialized
-                            // If broadcast has been initialized, then treat init as echo
-                            if let Some(_brb_sender) = self_internal.get(&hash_spawn.clone()).await {
-                                // Add public key to hashset
-                                // This results in bool, do we want to punish for duplicate?
-                                let _nonexists = internal.echo.insert(key_to_string(&public_key).unwrap());
-                            }
-
-                        }
-                        BrbMsg::Echo { public_key, broadcast_msg } => {
-                            if let Some(_brb_sender) = self_internal.get(&hash_spawn.clone()).await {
-                                // Add public key to hashset
-                                // This results in bool, do we want to punish for duplicate echo?
-                                let _nonexists = internal.echo.insert(key_to_string(&public_key).unwrap());
-
-                                if internal.ctl == "Echo".to_string() {
-                                    // If BRB in ctl = "Echo" and cardinality of internal.echo = (n+t)/2 broadcast 
-                                    // Then broadcast "Ready"
-                                    
-                                    // Cardinality of peers is going to get contentious - need to create manager
-                                    if internal.echo.len() > peers.cardinality()/2 {
-                                        // Broadcast Ready
-                                        peers.broadcast(
-                                        Broadcast::Ready {
-                                            hash: hash_spawn.clone()
-                                        }).await;
-                                        
-                                        internal.ctl = "Ready".to_string();
+                    tokio::spawn(async move
+                        {
+                            match brb_msg {
+                                BrbMsg::Init { public_key, broadcast_msg } => {
+                                    // First need to check if there is already a timeout
+                                    // Timeout caused by receiving Echo before Init msg
+                                    if internal_handler.tally == "Timeout".to_string() {
+                                        return
                                     }
+                                    // If Init did not initiate the BRB then it is a timeout.  Within the strict model
+                                    // of communication required by this protocol.  Is that too strict?
+    
+                                    // Check if this broadcast has already been initialized
+                                    // If broadcast has been initialized, then treat init as echo
+                                    if let Some(_brb_sender) = self_internal.get(&hash_spawn.clone()).await {
+                                        // Add public key to hashset
+                                        // This results in bool, do we want to punish for duplicate?
+                                        let _nonexists = internal.echo.insert(key_to_string(&public_key).unwrap());
+                                    }
+    
                                 }
-
-                                if internal.ctl == "Ready".to_string() {
-                                    // Step 2 (Ready) Bracha BRB: cardinality of internal.
-                                }
-
-
-                            } else {
-                                // If BRB instance does not exist for msg.hash then Timeout
-
-                                // Add public key to echo hashset regardless of ctl
-                                // This results in bool, do we want to punish for duplicate echo?
-                                let _nonexists = internal.echo.insert(key_to_string(&public_key).unwrap());
-
-                                if internal.ctl == "Timeout" {
+                                // Will not reach this code unless the BRB has been initiated.
+                                BrbMsg::Echo { public_key, broadcast_msg } => {
+                                        let _nonexists = internal.echo.insert(key_to_string(&public_key).unwrap());
+    
+                                        if internal.ctl == "Echo".to_string() {
+                                            // If BRB in ctl = "Echo" and cardinality of internal.echo = (n+t)/2 broadcast 
+                                            // Then broadcast "Ready"
+                                            
+                                            // Cardinality of peers is going to get contentious - need to create manager
+                                            if internal.echo.len() > peers.cardinality()/2 {
+                                                // Broadcast Ready
+                                                peers.broadcast(
+                                                Broadcast::Ready {
+                                                    hash: hash_spawn.clone()
+                                                }).await;
+                                                
+                                                internal.ctl = "Ready".to_string();
+                                            }
+                                        }
+    
+                                        if internal.ctl == "Ready".to_string() {
+                                            // Step 2 (Ready) Bracha BRB: cardinality of internal.
+                                        }
+    
+        /*
+        } else {
+            // If BRB instance does not exist for msg.hash then Timeout
+    
+            // Add public key to echo hashset regardless of ctl
+            // This results in bool, do we want to punish for duplicate echo?
+            let _nonexists = internal.echo.insert(key_to_string(&public_key).unwrap());
+    
+            if internal.ctl == "Timeout" {
+                
+                internal.ctl = "Timeout".to_string();
+    
+                // BRB manager does not exist send timeout
+                // Broadcast timeout
+                peers.broadcast(
+                    Broadcast::Timeout {
+                        hash: hash_spawn.clone()
+                }).await;
+            }
+        }
+        */
                                     
-                                    internal.ctl = "Timeout".to_string();
-
-                                    // BRB manager does not exist send timeout
-                                    // Broadcast timeout
-                                    peers.broadcast(
-                                        Broadcast::Timeout {
-                                            hash: hash_spawn.clone()
-                                    }).await;
+                                }
+                                BrbMsg::Ready { hash } => {
+                                    
+                                }
+                                BrbMsg::Timeout { hash } => {
+    
                                 }
                             }
-                        }
-                        BrbMsg::Ready { hash } => {
-                            
-                        }
-                        BrbMsg::Timeout { hash } => {
-
-                        }
-                    }
+                        });
                 }
-
                 brb_one_tx.send(true).unwrap();
-            }
-        );
+            });
 
         match self.set(&hash, brb_tx).await {
             true => println!("Initiated BRB {}", &hash),
@@ -227,22 +229,20 @@ enum BrbMsg {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct BrbInternal {
     hash: String,
     msg: BroadcastMsg,
-    ctl: String,
-    init: bool,
-    echo: HashSet<String>,
-    ready: HashSet<String>,
-    timeout: HashSet<String>,
-    commit: bool
+    ctl: Arc<Mutex<String>>,
+    init: Arc<Mutex<bool>>,
+    tally: Arc<Mutex<HashMap<String, HashSet<String>>>>,
+    commit: Arc<Mutex<bool>>
 }
 
 impl BrbInternal {
-    fn init (hash: String, BroadcastMsg: BroadcastMsg, signature: Signature) {
-
-    } 
+    fn update_tally() {
+        
+    }
 }
 
 /// Provided by the requester and used by the manager task to send
