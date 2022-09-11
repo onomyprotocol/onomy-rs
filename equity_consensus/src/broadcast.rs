@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
-use ed25519_consensus::{Signature, VerificationKey};
+use ed25519_consensus::VerificationKey;
 use equity_types::{ BroadcastMsg, Broadcast, key_to_string };
 use equity_p2p::PeerMap;
 
@@ -67,8 +67,8 @@ impl Brb {
         rx.await.unwrap()
     }
 
-    async fn exists(&self) -> bool {
-        if let Some(brb_sender) = self.get(&hash).await {
+    async fn exists(&self, hash: &String) -> bool {
+        if let Some(brb_sender) = self.get(hash).await {
             return true
         }
         false
@@ -103,11 +103,11 @@ impl Brb {
             {
                 let mut internal = Arc::new(Mutex::new(BrbInternal {
                     hash: hash_spawn.clone(),
-                    ctl: Arc::new(Mutex::new("Echo".to_string())),
+                    ctl: "Echo".to_string(),
                     msg: broadcast_msg,
-                    init: Arc::new(Mutex::new(true)),
-                    tally: Arc::new(Mutex::new(HashMap::new())),
-                    commit: Arc::new(Mutex::new(false))
+                    init: true,
+                    tally: HashMap::new(),
+                    commit: false
                 }));
 
                 while let Some(brb_msg) = brb_rx.recv().await {
@@ -117,9 +117,11 @@ impl Brb {
                         {
                             match brb_msg {
                                 BrbMsg::Init { public_key, broadcast_msg } => {
+                                    let internal_handler = internal_handler.lock().unwrap();
+
                                     // First need to check if there is already a timeout
                                     // Timeout caused by receiving Echo before Init msg
-                                    if internal_handler.tally.lock().unwrap() == "Timeout".to_string() {
+                                    if internal_handler.ctl == "Timeout".to_string() {
                                         return
                                     }
                                     // If Init did not initiate the BRB then it is a timeout.  Within the strict model
@@ -130,15 +132,16 @@ impl Brb {
                                     if let Some(_brb_sender) = self_internal.get(&hash_spawn.clone()).await {
                                         // Add public key to hashset
                                         // This results in bool, do we want to punish for duplicate?
-                                        let _nonexists = internal.echo.insert(key_to_string(&public_key).unwrap());
+                                        let _nonexists = internal_handler.tally(echo.insert(key_to_string(&public_key).unwrap());
                                     }
-    
                                 }
                                 // Will not reach this code unless the BRB has been initiated.
                                 BrbMsg::Echo { public_key, broadcast_msg } => {
-                                        let _nonexists = internal.echo.insert(key_to_string(&public_key).unwrap());
-    
-                                        if internal.ctl == "Echo".to_string() {
+                                    
+                                    let internal_handler = internal_handler.lock().unwrap();
+
+                                    if let Some(tally_len) = internal_handler.update_tally(&"Echo".into(), &public_key) {
+                                        if internal_handler.ctl == "Echo".to_string() {
                                             // If BRB in ctl = "Echo" and cardinality of internal.echo = (n+t)/2 broadcast 
                                             // Then broadcast "Ready"
                                             
@@ -153,10 +156,11 @@ impl Brb {
                                                 internal.ctl = "Ready".to_string();
                                             }
                                         }
-    
-                                        if internal.ctl == "Ready".to_string() {
-                                            // Step 2 (Ready) Bracha BRB: cardinality of internal.
-                                        }
+                                    }
+
+                                    if internal.ctl == "Ready".to_string() {
+                                        // Step 2 (Ready) Bracha BRB: cardinality of internal.
+                                    }
     
         /*
         } else {
@@ -250,8 +254,12 @@ pub struct BrbInternal {
 }
 
 impl BrbInternal {
-    fn update_tally() {
-        
+    fn update_tally(&self, stage: &String, public_key: &VerificationKey) -> Option<usize> {
+        if let Some(stage_set) = self.tally.get(stage) {
+            stage_set.insert(key_to_string(public_key).unwrap());
+            return Some(stage_set.len())
+        }
+        None
     }
 }
 
