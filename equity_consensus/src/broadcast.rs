@@ -67,11 +67,19 @@ impl Brb {
         rx.await.unwrap()
     }
 
+    async fn exists(&self) -> bool {
+        if let Some(brb_sender) = self.get(&hash).await {
+            return true
+        }
+        false
+    }
+
     // All BRB broadcast messages are either initiated or received.
     // Initiation is prompted by out of network messages (client / new validator) or enabled consensus condition.
     // All in-network messages are Received as part of Brb Broadcast
     pub async fn initiate (&self, peers: PeerMap, hash: &String, public_key: &VerificationKey, broadcast_msg: &BroadcastMsg) {
         // First need to check if there is already an initiated BRB instance with this same hash
+        /*
         if let Some(brb_sender) = self.get(&hash).await {
             // BRB manager exists then treat as Echo
             // Need to define below how to use Echo before completing this part.
@@ -82,6 +90,8 @@ impl Brb {
                 }
             ).await.unwrap()
         }
+        
+        */
         
         let (brb_tx, mut brb_rx) = mpsc::channel(1000);
         let (brb_one_tx, brb_one_rx) = oneshot::channel();
@@ -109,7 +119,7 @@ impl Brb {
                                 BrbMsg::Init { public_key, broadcast_msg } => {
                                     // First need to check if there is already a timeout
                                     // Timeout caused by receiving Echo before Init msg
-                                    if internal_handler.tally == "Timeout".to_string() {
+                                    if internal_handler.tally.lock().unwrap() == "Timeout".to_string() {
                                         return
                                     }
                                     // If Init did not initiate the BRB then it is a timeout.  Within the strict model
@@ -233,10 +243,10 @@ enum BrbMsg {
 pub struct BrbInternal {
     hash: String,
     msg: BroadcastMsg,
-    ctl: Arc<Mutex<String>>,
-    init: Arc<Mutex<bool>>,
-    tally: Arc<Mutex<HashMap<String, HashSet<String>>>>,
-    commit: Arc<Mutex<bool>>
+    ctl: String,
+    init: bool,
+    tally: HashMap<String, HashSet<String>>,
+    commit: bool
 }
 
 impl BrbInternal {
