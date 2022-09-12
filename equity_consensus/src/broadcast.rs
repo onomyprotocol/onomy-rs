@@ -115,7 +115,7 @@ impl Brb {
         tokio::spawn(async move
             {
                 while let Some(brb_msg) = brb_rx.recv().await {
-                    let internal_handler = internal.lock().unwrap();
+                    let mut internal_handler = internal.lock().unwrap();
                     match brb_msg {
                         BrbMsg::Init { public_key, broadcast_msg } => {
                             match internal_handler.ctl.as_str() {
@@ -127,6 +127,7 @@ impl Brb {
                                     let tally_len = internal_handler.update_tally(&"Echo".into(), &public_key).unwrap();
                                     if tally_len > peers.cardinality()/2 {
                                         let hash = internal_handler.hash.clone();
+                                        let peers = peers.clone();
                                         // Broadcast Ready
                                         tokio::spawn( async move {
                                             peers.broadcast(
@@ -141,25 +142,62 @@ impl Brb {
                                 "Ready" => {
 
                                 }
-                            }
 
-                            if internal_handler.ctl == "Echo".to_string() {
-                                self_internal.echo(&mut internal_handler, &public_key, &peers).await;
-                            }   
+                                &_ => {
+
+                                }
+                            }  
                         }
                         BrbMsg::Echo { public_key, broadcast_msg } => {
+                            match internal_handler.ctl.as_str() {
+                                "Init" => {
+                                    internal_handler.ctl = "Timeout".to_string();
+                                    let hash = internal_handler.hash.clone();
+                                    let peers = peers.clone();
+                                    tokio::spawn( async move {
+                                        // Broadcast timeout
+                                        peers.broadcast(
+                                            Broadcast::Timeout {
+                                                hash
+                                        }).await;
+                                    });
+                                }
+
+                                "Echo" => {
+                                    let tally_len = internal_handler.update_tally(&"Echo".into(), &public_key).unwrap();
+                                    if tally_len > peers.cardinality()/2 {
+                                        let hash = internal_handler.hash.clone();
+                                        let peers = peers.clone();
+                                        // Broadcast Ready
+                                        tokio::spawn( async move {
+                                            peers.broadcast(
+                                                Broadcast::Ready {
+                                                    hash
+                                                }).await;
+                                        });
+                                        internal_handler.ctl = "Ready".to_string();
+                                    }
+                                }
+
+                                "Ready" => {
+
+                                }
+
+                                "Timeout" => {
+
+                                }
+
+                                &_ => {
+
+                                }
+                            }
+                            
                             // Receiving echo before init, Timeout
                             // Assumes network routing through another peer is always
                             // slower than direct P2P connection.  Not sure if this
                             // holds
                             if internal_handler.ctl == "Init".to_string() {
-                                internal_handler.ctl = "Timeout".to_string();
-
-                                // Broadcast timeout
-                                peers.broadcast(
-                                    Broadcast::Timeout {
-                                        hash: hash_spawn.clone()
-                                }).await;
+                                
                             }
 
                             if internal_handler.ctl == "Ready".to_string() {
