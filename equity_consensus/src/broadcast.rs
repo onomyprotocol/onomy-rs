@@ -23,7 +23,7 @@ impl Brb {
             {
                 // Optimize to HashMap that uses the SHA512 directly without hashing a key
                 // String and std::collections::hashmap is just a convenience for now.
-                let mut brb_map: HashMap<String, mpsc::Sender<BrbMsg>> = HashMap::new();
+                let mut brb_map: HashMap<String, mpsc::Sender<Broadcast>> = HashMap::new();
 
                 while let Some(cmd) = rx.recv().await {
                     match cmd {
@@ -55,13 +55,13 @@ impl Brb {
         }
     }
 
-    async fn get(&self, hash: &String) -> Option<mpsc::Sender<BrbMsg>> {
+    async fn get(&self, hash: &String) -> Option<mpsc::Sender<Broadcast>> {
         let (tx, rx) = oneshot::channel();
         self.sender.send(BrbCommand::Get { key: hash.clone(), resp: tx }).await.unwrap();
         rx.await.unwrap()
     }
 
-    async fn set(&self, hash: &String, sender: mpsc::Sender<BrbMsg>) -> bool {
+    async fn set(&self, hash: &String, sender: mpsc::Sender<Broadcast>) -> bool {
         let (tx, rx) = oneshot::channel();
         self.sender.send(BrbCommand::Set { key: hash.clone(), val: sender, resp: tx }).await.unwrap();
         rx.await.unwrap()
@@ -117,10 +117,19 @@ impl Brb {
                 while let Some(brb_msg) = brb_rx.recv().await {
                     let mut internal_handler = internal.lock().unwrap();
                     match brb_msg {
-                        BrbMsg::Init { public_key, broadcast_msg } => {
+                        Broadcast::Init { msg, public_key, salt, signature } => {
                             match internal_handler.ctl.as_str() {
                                 "Init" => {
-
+                                    tokio::spawn( async move {
+                                        peers.broadcast(
+                                            Broadcast::Echo {
+                                                msg,
+                                                public_key,
+                                                salt,
+                                                signature
+                                            }).await;
+                                    });
+                                    internal_handler.ctl = "Echo".to_string();
                                 }
 
                                 "Echo" => {
@@ -138,17 +147,33 @@ impl Brb {
                                         internal_handler.ctl = "Ready".to_string();
                                     }
                                 }
-
+                                // If stage is "Ready" then echo is no longer needed
                                 "Ready" => {
-
+                                    return
                                 }
 
+                                // Same as echo?
+                                "Timeout" => {
+                                    let tally_len = internal_handler.update_tally(&"Echo".into(), &public_key).unwrap();
+                                    if tally_len > peers.cardinality()/2 {
+                                        let hash = internal_handler.hash.clone();
+                                        let peers = peers.clone();
+                                        // Broadcast Ready
+                                        tokio::spawn( async move {
+                                            peers.broadcast(
+                                                Broadcast::Ready {
+                                                    hash
+                                                }).await;
+                                        });
+                                        internal_handler.ctl = "Ready".to_string();
+                                    }
+                                }
                                 &_ => {
-
+                                    return
                                 }
                             }  
                         }
-                        BrbMsg::Echo { public_key, broadcast_msg } => {
+                        Broadcast::Echo { public_key, broadcast_msg } => {
                             match internal_handler.ctl.as_str() {
                                 "Init" => {
                                     internal_handler.ctl = "Timeout".to_string();
@@ -204,10 +229,10 @@ impl Brb {
                                 // Step 2 (Ready) Bracha BRB: cardinality of internal.
                             }
                         }
-                        BrbMsg::Ready { hash } => {
+                        Broadcast::Ready { hash } => {
                             
                         }
-                        BrbMsg::Timeout { hash } => {
+                        Broadcast::Timeout { hash } => {
 
                         }
                     }  
@@ -234,31 +259,13 @@ impl Brb {
 enum BrbCommand {
     Get {
         key: String,
-        resp: Responder<Option<mpsc::Sender<BrbMsg>>>,
+        resp: Responder<Option<mpsc::Sender<Broadcast>>>,
     },
     Set {
         key: String,
-        val: mpsc::Sender<BrbMsg>,
+        val: mpsc::Sender<Broadcast>,
         resp: Responder<bool>,
     },
-}
-
-#[derive(Debug)]
-enum BrbMsg {
-    Init {
-        public_key: VerificationKey,
-        broadcast_msg: BroadcastMsg
-    },
-    Echo {
-        public_key: VerificationKey,
-        broadcast_msg: BroadcastMsg
-    },
-    Ready {
-        hash: String
-    },
-    Timeout {
-        hash: String
-    }
 }
 
 #[derive(Debug, Clone)]
