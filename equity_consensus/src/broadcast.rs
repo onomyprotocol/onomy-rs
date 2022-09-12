@@ -74,18 +74,18 @@ impl Brb {
         false
     }
 
-    async fn echo(&self, internal: &BrbInternal, public_key: &VerificationKey) {
+    async fn echo(&self, internal: &mut BrbInternal, public_key: &VerificationKey, peers: &PeerMap) {
         if let Some(tally_len) = internal.update_tally(&"Echo".into(), &public_key) {
-            if internal_handler.ctl == "Echo".to_string() {
+            if internal.ctl == "Echo".to_string() {
                 // If BRB in ctl = "Echo" and cardinality of internal.echo = (n+t)/2 broadcast 
                 // Then broadcast "Ready"
                 
                 // Cardinality of peers is going to get contentious - need to create manager
-                if internal.echo.len() > peers.cardinality()/2 {
+                if tally_len > peers.cardinality()/2 {
                     // Broadcast Ready
                     peers.broadcast(
                     Broadcast::Ready {
-                        hash: hash_spawn.clone()
+                        hash: internal.hash.clone()
                     }).await;
                     
                     internal.ctl = "Ready".to_string();
@@ -116,13 +116,35 @@ impl Brb {
             {
                 while let Some(brb_msg) = brb_rx.recv().await {
                     let internal_handler = internal.lock().unwrap();
-                    
                     match brb_msg {
                         BrbMsg::Init { public_key, broadcast_msg } => {
-                            
+                            match internal_handler.ctl.as_str() {
+                                "Init" => {
+
+                                }
+
+                                "Echo" => {
+                                    let tally_len = internal_handler.update_tally(&"Echo".into(), &public_key).unwrap();
+                                    if tally_len > peers.cardinality()/2 {
+                                        let hash = internal_handler.hash.clone();
+                                        // Broadcast Ready
+                                        tokio::spawn( async move {
+                                            peers.broadcast(
+                                                Broadcast::Ready {
+                                                    hash
+                                                }).await;
+                                        });
+                                        internal_handler.ctl = "Ready".to_string();
+                                    }
+                                }
+
+                                "Ready" => {
+
+                                }
+                            }
 
                             if internal_handler.ctl == "Echo".to_string() {
-                                self_internal.echo(&internal_handler, &public_key);
+                                self_internal.echo(&mut internal_handler, &public_key, &peers).await;
                             }   
                         }
                         BrbMsg::Echo { public_key, broadcast_msg } => {
