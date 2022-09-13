@@ -120,6 +120,7 @@ impl Brb {
                         Broadcast::Init { msg, public_key, salt, signature } => {
                             match internal_handler.ctl.as_str() {
                                 "Init" => {
+                                    let peers = peers.clone();
                                     tokio::spawn( async move {
                                         peers.broadcast(
                                             Broadcast::Echo {
@@ -173,7 +174,7 @@ impl Brb {
                                 }
                             }  
                         }
-                        Broadcast::Echo { public_key, broadcast_msg } => {
+                        Broadcast::Echo { msg, public_key, salt, signature } => {
                             match internal_handler.ctl.as_str() {
                                 "Init" => {
                                     internal_handler.ctl = "Timeout".to_string();
@@ -204,12 +205,26 @@ impl Brb {
                                     }
                                 }
 
+                                // If stage is "Ready" then echo is no longer needed
                                 "Ready" => {
-
+                                    return
                                 }
 
+                                // This 
                                 "Timeout" => {
-
+                                    let tally_len = internal_handler.update_tally(&"Echo".into(), &public_key).unwrap();
+                                    if tally_len > peers.cardinality()/2 {
+                                        let hash = internal_handler.hash.clone();
+                                        let peers = peers.clone();
+                                        // Broadcast Ready
+                                        tokio::spawn( async move {
+                                            peers.broadcast(
+                                                Broadcast::Ready {
+                                                    hash
+                                                }).await;
+                                        });
+                                        internal_handler.ctl = "Ready".to_string();
+                                    }
                                 }
 
                                 &_ => {
